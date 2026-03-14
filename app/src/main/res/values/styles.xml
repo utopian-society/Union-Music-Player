@@ -1,18 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:windowBackground">@color/dark_background</item>
-    </style>
 
-    <style name="FuturisticTheme" parent="Theme.AppCompat.NoActionBar">
-        <item name="colorPrimary">@color/futuristic_orange</item>
-        <item name="colorPrimaryDark">@color/futuristic_yellow</item>
-        <item name="colorAccent">@color/futuristic_green</item>
-        <item name="android:windowBackground">@color/dark_background</item>
-    </style>
-
+    <style name="Theme.UnionMusicPlayer" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>
