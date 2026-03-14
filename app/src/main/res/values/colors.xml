@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FFC107</color> <!-- Orange -->
+    <color name="colorPrimaryDark">#FFA000</color> <!-- Darker Orange -->
+    <color name="colorAccent">#4CAF50</color> <!-- Green -->
+    <color name="futuristic_green">#00FF00</color>
+    <color name="futuristic_yellow">#FFFF00</color>
+    <color name="futuristic_orange">#FF8C00</color>
+    <color name="dark_background">#121212</color>
+</resources>
