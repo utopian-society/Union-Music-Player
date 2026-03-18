@@ -1,20 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<!--
+    activity_main.xml - 主界面布局文件
+
+    XML布局文件定义了Activity的用户界面结构。
+    Android会将XML转换为View对象树。
+
+    学习要点：
+    1. 布局容器：用于组织子视图的排列方式
+    2. 视图属性：定义视图的外观和行为
+    3. 单位：dp（密度无关像素）、sp（缩放无关像素）
+
+    常用属性说明：
+    - android:layout_width/height：
+      * match_parent：填充父容器
+      * wrap_content：根据内容调整大小
+      * 具体数值：如100dp
+    - android:id：视图的唯一标识符，格式为"@+id/名称"
+    - android:layout_margin：外边距
+    - android:padding：内边距
+-->
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:padding="16dp"
     tools:context=".MainActivity">
 
+    <!--
+        RelativeLayout：相对布局
+        子视图可以相对于父容器或其他子视图定位
+
+        主要属性：
+        - layout_centerHorizontal：水平居中
+        - layout_below：位于指定视图下方
+        - layout_toStartOf：位于指定视图左侧
+        - layout_toEndOf：位于指定视图右侧
+    -->
+
+    <!--
+        歌曲标题TextView
+        显示当前播放歌曲的标题
+
+        TextView属性：
+        - textSize：文字大小（sp单位，推荐）
+        - textStyle：文字样式（bold, italic, normal）
+        - textColor：文字颜色
+    -->
     <TextView
         android:id="@+id/song_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="100dp"
+        android:layout_marginTop="80dp"
         android:text="Song Title"
-        android:textSize="24sp" />
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black" />
 
+    <!--
+        歌曲艺术家TextView
+        显示当前播放歌曲的艺术家
+    -->
     <TextView
         android:id="@+id/song_artist"
         android:layout_width="wrap_content"
@@ -23,40 +70,81 @@
         android:layout_centerHorizontal="true"
         android:layout_marginTop="8dp"
         android:text="Song Artist"
-        android:textSize="18sp" />
+        android:textSize="18sp"
+        android:textColor="@android:color/darker_gray" />
 
+    <!--
+        SeekBar：进度条/拖动条
+        用于显示播放进度和调整播放位置
+
+        SeekBar属性：
+        - max：最大值（在代码中动态设置）
+        - progress：当前进度（在代码中动态更新）
+    -->
     <SeekBar
         android:id="@+id/seek_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/song_artist"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:max="100"
+        android:progress="0" />
 
-    <ImageButton
-        android:id="@+id/play_pause_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/seek_bar"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="32dp"
-        android:src="@android:drawable/ic_media_play" />
+    <!--
+        控制按钮区域
+        使用ImageButton：可以显示图片的按钮
+    -->
 
+    <!--
+        上一首按钮
+        layout_toStartOf：位于播放按钮左侧
+    -->
     <ImageButton
         android:id="@+id/previous_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@id/play_pause_button"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_below="@id/seek_bar"
+        android:layout_marginTop="32dp"
         android:layout_toStartOf="@id/play_pause_button"
         android:layout_marginEnd="32dp"
-        android:src="@android:drawable/ic_media_previous" />
+        android:src="@android:drawable/ic_media_previous"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Previous song"
+        android:scaleType="centerInside" />
 
+    <!--
+        播放/暂停按钮
+        layout_centerHorizontal：水平居中
+    -->
+    <ImageButton
+        android:id="@+id/play_pause_button"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_below="@id/seek_bar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="24dp"
+        android:src="@android:drawable/ic_media_play"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Play or pause"
+        android:scaleType="centerInside" />
+
+    <!--
+        下一首按钮
+        layout_toEndOf：位于播放按钮右侧
+    -->
     <ImageButton
         android:id="@+id/next_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@id/play_pause_button"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_below="@id/seek_bar"
+        android:layout_marginTop="32dp"
         android:layout_toEndOf="@id/play_pause_button"
         android:layout_marginStart="32dp"
-        android:src="@android:drawable/ic_media_next" />
+        android:src="@android:drawable/ic_media_next"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="Next song"
+        android:scaleType="centerInside" />
 
 </RelativeLayout>

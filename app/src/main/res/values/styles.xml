@@ -1,5 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    styles.xml - 应用主题和样式定义
+
+    样式（Style）：定义视图的外观（如颜色、字体、尺寸）
+    主题（Theme）：应用于整个应用或Activity的样式
+
+    学习要点：
+    1. 样式继承：parent属性指定父样式
+    2. 资源引用：@color/xxx, @style/xxx
+    3. Material Design：Google的设计规范
+-->
 <resources>
 
-    <style name="Theme.UnionMusicPlayer" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        应用主题：Theme.UnionMusicPlayer
+
+        parent属性：指定父主题，继承其所有属性
+
+        可选的父主题：
+        - Theme.MaterialComponents.Light：Material Design浅色主题（推荐）
+        - Theme.AppCompat.Light：传统浅色主题
+        - Theme.AppCompat.NoActionBar：无ActionBar主题
+        - Theme.MaterialComponents.DayNight：自动明暗主题
+
+        使用Theme.MaterialComponents需要确保依赖了material库
+    -->
+    <style name="Theme.UnionMusicPlayer" parent="Theme.MaterialComponents.Light.NoActionBar">
+
+        <!--
+            主色调（Primary Color）
+            应用中最常使用的颜色，如工具栏、按钮等
+            使用Material组件的属性名
+        -->
+        <item name="colorPrimary">#6200EE</item>
+
+        <!--
+            主色调变体（Primary Variant）
+            用于区分主色调的不同深浅
+        -->
+        <item name="colorPrimaryVariant">#3700B3</item>
+
+        <!--
+            强调色（Secondary Color）
+            用于强调元素，如浮动操作按钮、链接等
+        -->
+        <item name="colorSecondary">#03DAC6</item>
+
+        <!--
+            强调色变体（Secondary Variant）
+        -->
+        <item name="colorSecondaryVariant">#018786</item>
+
+        <!--
+            背景色（Background）
+            页面的背景颜色
+        -->
+        <item name="android:colorBackground">#FFFFFF</item>
+
+        <!--
+            状态栏颜色（Status Bar Color）
+            顶部显示时间、电量的区域
+        -->
+        <item name="android:statusBarColor">#6200EE</item>
+
+        <!--
+            导航栏颜色（Navigation Bar Color）
+            底部虚拟按键区域（仅部分设备）
+        -->
+        <item name="android:navigationBarColor">#FFFFFF</item>
+
+    </style>
+
+    <!--
+        可选：定义可复用的样式
+
+        可以在布局文件中通过style="@style/ButtonStyle"引用
+    -->
+    <style name="ButtonStyle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:background">#6200EE</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
 </resources>
