@@ -1,7 +1,7 @@
 /**
  * UnionMusicApp.kt - 主应用Composable
  *
- * 这是应用的主Composable，包含底部三按钮导航和主要界面。
+ * 这是应用的主Composable，包含浮动播放器和底部三按钮控制面板。
  * 设计参考Apple Music风格：Library、Playlist、More三个主要功能。
  */
 package org.bibichan.union.player.ui
@@ -16,7 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import org.bibichan.union.player.MusicPlayer
+import org.bibichan.union.player.ui.components.BottomControlPanel
+import org.bibichan.union.player.ui.components.FloatingPlayer
+import org.bibichan.union.player.ui.components.PlaylistSelector
 import org.bibichan.union.player.ui.screens.*
+import java.io.File
 
 /**
  * 导航项数据类
@@ -39,6 +43,8 @@ fun UnionMusicApp(
     onRequestPermission: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    var isPlayerExpanded by remember { mutableStateOf(false) }
+    var showPlaylistSelector by remember { mutableStateOf(false) }
     
     // 定义底部导航项
     val navItems = listOf(
@@ -59,49 +65,14 @@ fun UnionMusicApp(
         )
     )
     
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
-                tonalElevation = 8.dp,
-                modifier = Modifier
-                    .height(80.dp)
-            ) {
-                navItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.title,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = item.title,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        },
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // 主要内容区域
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(bottom = 80.dp) // 为底部控制面板预留空间
         ) {
             when (selectedTab) {
                 0 -> LibraryScreen(
@@ -115,6 +86,48 @@ fun UnionMusicApp(
                     onRequestPermission = onRequestPermission
                 )
             }
+        }
+        
+        // 浮动播放器
+        AnimatedVisibility(
+            visible = musicPlayer.getCurrentSong() != null,
+            enter = androidx.compose.animation.slideInVertically(
+                initialOffsetY = { it }
+            ) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(
+                targetOffsetY = { it }
+            ) + androidx.compose.animation.fadeOut()
+        ) {
+            FloatingPlayer(
+                musicPlayer = musicPlayer,
+                isVisible = isPlayerExpanded,
+                onExpand = { isPlayerExpanded = true },
+                onCollapse = { isPlayerExpanded = false }
+            )
+        }
+        
+        // 底部控制面板
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            BottomControlPanel(
+                onLibraryClick = { selectedTab = 0 },
+                onPlaylistClick = { showPlaylistSelector = true },
+                onMoreClick = { selectedTab = 2 }
+            )
+        }
+        
+        // 播放列表选择器
+        if (showPlaylistSelector) {
+            PlaylistSelector(
+                onPlaylistSelected = { uri ->
+                    // 处理选中的播放列表文件
+                    // 这里应该解析m3u8文件并加载到播放器中
+                },
+                onDismiss = { showPlaylistSelector = false }
+            )
         }
     }
 }
