@@ -3,6 +3,7 @@
  *
  * 实现Apple Music风格的浮动播放器，具有展开/收起动画效果
  */
+
 package org.bibichan.union.player.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -20,7 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.bibichan.union.player.MusicPlayer
-import org.bibichan.union.player.Song
+import org.bibichan.union.player.data.MusicMetadata
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,14 +33,14 @@ fun FloatingPlayer(
 ) {
     val currentSong by remember { mutableStateOf(musicPlayer.getCurrentSong()) }
     val isPlaying by remember { mutableStateOf(musicPlayer.isPlaying()) }
-    
+
     // 动画状态
     val animatedProgress by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "player_expand"
     )
-    
+
     // 浮动播放器容器
     Box(
         modifier = Modifier
@@ -55,7 +56,7 @@ fun FloatingPlayer(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { 
+                .clickable {
                     if (isVisible) onCollapse() else onExpand()
                 },
             shape = MaterialTheme.shapes.extraLarge,
@@ -87,7 +88,7 @@ fun FloatingPlayer(
 
 @Composable
 fun MiniPlayer(
-    currentSong: Song?,
+    currentSong: MusicMetadata?,
     isPlaying: Boolean,
     musicPlayer: MusicPlayer
 ) {
@@ -110,9 +111,9 @@ fun MiniPlayer(
                 tint = MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         // 歌曲信息
         Column(
             modifier = Modifier.weight(1f)
@@ -138,7 +139,7 @@ fun MiniPlayer(
                 )
             }
         }
-        
+
         // 播放控制按钮
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -157,11 +158,9 @@ fun MiniPlayer(
                     contentDescription = if (isPlaying) "Pause" else "Play"
                 )
             }
-            
+
             IconButton(
-                onClick = {
-                    musicPlayer.next()
-                }
+                onClick = { musicPlayer.next() }
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
@@ -175,7 +174,7 @@ fun MiniPlayer(
 @Composable
 fun ExpandedPlayer(
     musicPlayer: MusicPlayer,
-    currentSong: Song?,
+    currentSong: MusicMetadata?,
     isPlaying: Boolean
 ) {
     Column(
@@ -200,9 +199,9 @@ fun ExpandedPlayer(
                 tint = MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         // 歌曲信息
         currentSong?.let { song ->
             Text(
@@ -210,9 +209,9 @@ fun ExpandedPlayer(
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.titleMedium,
@@ -225,9 +224,9 @@ fun ExpandedPlayer(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         // 播放控制按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -236,9 +235,7 @@ fun ExpandedPlayer(
         ) {
             // 上一首
             FilledIconButton(
-                onClick = {
-                    musicPlayer.previous()
-                },
+                onClick = { musicPlayer.previous() },
                 modifier = Modifier.size(56.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -250,7 +247,7 @@ fun ExpandedPlayer(
                     modifier = Modifier.size(32.dp)
                 )
             }
-            
+
             // 播放/暂停
             FilledIconButton(
                 onClick = {
@@ -266,18 +263,15 @@ fun ExpandedPlayer(
                 )
             ) {
                 Icon(
-                    imageVector = if (musicPlayer.isPlaying()) 
-                        Icons.Default.Pause else Icons.Default.PlayArrow,
+                    imageVector = if (musicPlayer.isPlaying()) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (musicPlayer.isPlaying()) "Pause" else "Play",
                     modifier = Modifier.size(40.dp)
                 )
             }
-            
+
             // 下一首
             FilledIconButton(
-                onClick = {
-                    musicPlayer.next()
-                },
+                onClick = { musicPlayer.next() },
                 modifier = Modifier.size(56.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondary

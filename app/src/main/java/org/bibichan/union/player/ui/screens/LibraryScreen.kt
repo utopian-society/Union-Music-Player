@@ -3,6 +3,7 @@
  *
  * 显示本地音乐文件列表，支持按歌曲、专辑、艺术家分类。
  */
+
 package org.bibichan.union.player.ui.screens
 
 import android.Manifest
@@ -22,7 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.R
-import org.bibichan.union.player.Song
+import org.bibichan.union.player.data.MusicMetadata
+import org.bibichan.union.player.data.AudioFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,8 +33,8 @@ fun LibraryScreen(
     onRequestPermission: () -> Unit
 ) {
     val context = LocalContext.current
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    
+    var songs by remember { mutableStateOf<List<MusicMetadata>>(emptyList()) }
+
     // 检查存储权限
     val hasPermission = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -47,18 +49,34 @@ fun LibraryScreen(
             ) == PackageManager.PERMISSION_GRANTED
         }
     }
-    
+
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             // TODO: 扫描本地音乐文件
             // 暂时使用示例歌曲
             songs = listOf(
-                Song("Sample Music 1", "Artist 1", R.raw.sample_music_1),
-                Song("Sample Music 2", "Artist 2", R.raw.sample_music_2)
+                MusicMetadata(
+                    id = 1,
+                    title = "Sample Music 1",
+                    artist = "Artist 1",
+                    album = "Sample Album",
+                    duration = 180000,
+                    filePath = "",
+                    format = AudioFormat.MP3
+                ),
+                MusicMetadata(
+                    id = 2,
+                    title = "Sample Music 2",
+                    artist = "Artist 2",
+                    album = "Sample Album",
+                    duration = 240000,
+                    filePath = "",
+                    format = AudioFormat.MP3
+                )
             )
         }
     }
-    
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -104,7 +122,7 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(songs) { song ->
-                        SongItem(
+                        LibrarySongItem(
                             song = song,
                             onClick = {
                                 musicPlayer.setSongs(songs)
@@ -120,8 +138,8 @@ fun LibraryScreen(
 }
 
 @Composable
-fun SongItem(
-    song: Song,
+private fun LibrarySongItem(
+    song: MusicMetadata,
     onClick: () -> Unit
 ) {
     Card(
@@ -151,9 +169,9 @@ fun SongItem(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -168,7 +186,7 @@ fun SongItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             IconButton(onClick = { /* TODO: More options */ }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
@@ -204,25 +222,25 @@ fun PermissionRequiredCard(
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "Storage Permission Required",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = "To play local music files, we need access to your storage.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             FilledTonalButton(
                 onClick = onRequestPermission,
                 colors = ButtonDefaults.filledTonalButtonColors(
@@ -264,17 +282,17 @@ fun EmptyStateCard() {
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "No Music Found",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = "Add some music to your device to start playing.",
                 style = MaterialTheme.typography.bodyMedium,

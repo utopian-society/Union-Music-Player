@@ -3,7 +3,6 @@
  *
  * 添加了音频元数据提取、ExoPlayer和协程依赖
  */
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -78,8 +77,10 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.2.1")
     implementation("androidx.media3:media3-common:1.2.1")
 
-    // 音频元数据提取库 (使用Maven Central的原版jaudiotagger)
-    implementation("org.jaudiotagger:jaudiotagger:2.2.5")
+    // 音频元数据提取库
+    implementation("com.mpatric:mp3agic:0.9.1")
+    // jaudiotagger from Maven Central
+    implementation("org.jaudiotagger:jaudiotagger:2.0.1")
 
     // Kotlin协程 - 用于并行文件扫描
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

@@ -7,6 +7,8 @@ package org.bibichan.union.player.data
 
 import android.graphics.Bitmap
 import android.net.Uri
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * 音乐元数据
@@ -39,7 +41,54 @@ data class MusicMetadata(
     val year: Int? = null,
     val trackNumber: Int? = null,
     val format: AudioFormat = AudioFormat.MP3
-)
+) {
+    /**
+     * 将音乐元数据转换为JSON对象
+     * 注意：albumArt (Bitmap) 不被序列化，因为Bitmap无法直接JSON化
+     */
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", id)
+            put("title", title)
+            put("artist", artist)
+            put("album", album)
+            put("duration", duration)
+            put("filePath", filePath)
+            put("uri", uri.toString())
+            put("albumArtPath", albumArtPath)
+            put("genre", genre)
+            put("year", year)
+            put("trackNumber", trackNumber)
+            put("format", format.name)
+        }
+    }
+
+    companion object {
+        /**
+         * 从JSON对象创建音乐元数据
+         */
+        fun fromJson(json: JSONObject): MusicMetadata {
+            return MusicMetadata(
+                id = json.optLong("id", 0),
+                title = json.optString("title", ""),
+                artist = json.optString("artist", "Unknown Artist"),
+                album = json.optString("album", "Unknown Album"),
+                duration = json.optLong("duration", 0),
+                filePath = json.optString("filePath", ""),
+                uri = Uri.parse(json.optString("uri", "")),
+                albumArtPath = json.optString("albumArtPath", null),
+                genre = json.optString("genre", null),
+                year = json.optInt("year", 0).takeIf { it != 0 },
+                trackNumber = json.optInt("trackNumber", 0).takeIf { it != 0 },
+                format = try {
+                    AudioFormat.valueOf(json.optString("format", "MP3"))
+                } catch (e: IllegalArgumentException) {
+                    AudioFormat.MP3
+                }
+            )
+        }
+    }
+}
 
 /**
  * 音频格式枚举
@@ -47,22 +96,21 @@ data class MusicMetadata(
 enum class AudioFormat(val extension: String, val displayName: String) {
     MP3("mp3", "MP3"),
     FLAC("flac", "FLAC"),
-    ALAC("m4a", "ALAC"), // ALAC通常使用.m4a容器
+    ALAC("m4a", "ALAC"),  // ALAC通常使用.m4a容器
     M4A("m4a", "M4A"),
     AAC("aac", "AAC"),
     WAV("wav", "WAV"),
     OGG("ogg", "OGG"),
     UNKNOWN("", "Unknown");
-    
+
     companion object {
         /**
          * 根据文件扩展名获取音频格式
          */
         fun fromExtension(extension: String): AudioFormat {
-            return values().find { it.extension.equals(extension, ignoreCase = true) }
-                ?: UNKNOWN
+            return values().find { it.extension.equals(extension, ignoreCase = true) } ?: UNKNOWN
         }
-        
+
         /**
          * 支持的音频格式扩展名列表
          */
@@ -85,7 +133,46 @@ data class Playlist(
     val songs: List<MusicMetadata> = emptyList(),
     val filePath: String? = null,
     val creationDate: Long = System.currentTimeMillis()
-)
+) {
+    /**
+     * 将播放列表转换为JSON对象
+     */
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", id)
+            put("name", name)
+            val songsArray = JSONArray()
+            songs.forEach { song ->
+                songsArray.put(song.toJson())
+            }
+            put("songs", songsArray)
+            put("filePath", filePath)
+            put("creationDate", creationDate)
+        }
+    }
+
+    companion object {
+        /**
+         * 从JSON对象创建播放列表
+         */
+        fun fromJson(json: JSONObject): Playlist {
+            val songsArray = json.optJSONArray("songs")
+            val songs = mutableListOf<MusicMetadata>()
+            if (songsArray != null) {
+                for (i in 0 until songsArray.length()) {
+                    songs.add(MusicMetadata.fromJson(songsArray.getJSONObject(i)))
+                }
+            }
+            return Playlist(
+                id = json.optLong("id", 0),
+                name = json.optString("name", ""),
+                songs = songs,
+                filePath = json.optString("filePath", null),
+                creationDate = json.optLong("creationDate", System.currentTimeMillis())
+            )
+        }
+    }
+}
 
 /**
  * 扫描结果
