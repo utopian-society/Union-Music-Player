@@ -3,9 +3,12 @@
 
 [versions]
 guava = "33.2.1-jre"
+kotlin = "2.0.20"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "2.0.0" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
