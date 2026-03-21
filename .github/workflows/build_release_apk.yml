@@ -52,7 +52,7 @@ jobs:
 
     # ────────────────────────────────────────────────────────────────
     # Decode base64 keystore from secret → file in workspace
-    # PKCS12 format is the default for Java 17+ and is more secure
+    # PKCS12 format is the default for Java 25+ and is more secure
     # ────────────────────────────────────────────────────────────────
     - name: Decode & place keystore
       run: |

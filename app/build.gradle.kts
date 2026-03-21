@@ -7,14 +7,13 @@
 * 2026 现代化更新：更新所有主要依赖到最新版本
 * 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
 * 使用 PKCS12 格式的 keystore（Java 25+ 默认格式）
+* Gradle 9.4.1 + AGP 9.10 + Kotlin 2.1.20 + Java 25
 */
 
 plugins {
-    id("com.android.application") version "8.13.0" apply false
-    id("com.android.library") version "8.13.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.compose.compiler)
+    id("com.android.application")
+    // id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -58,8 +57,7 @@ android {
                     storePassword = keystorePassword
                     this.keyAlias = keyAlias
                     this.keyPassword = keyPassword
-                    // PKCS12 是 Java 25+ 的默认格式，无需显式指定
-                    // 但为了兼容性，可以显式指定
+                    // PKCS12 是 Java 25+ 的默认格式
                     storeType = "PKCS12"
                 }
             } else {
@@ -78,17 +76,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_25
     }
 
-    kotlinOptions {
-        jvmTarget = "25"
-    }
-
+    
     buildFeatures {
         compose = true
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.9"
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
+}
+
+kotlin {
+    jvmToolchain(25)
 }
 
 dependencies {
@@ -115,10 +114,10 @@ dependencies {
 
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
     // 同时用于音频元数据提取（替代 jaudiotagger）
-    implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1")
-    implementation("androidx.media3:media3-common:1.5.1")
-    implementation("androidx.media3:media3-datasource:1.5.1")
+    implementation("androidx.media3:media3-exoplayer:1.10.0")
+    implementation("androidx.media3:media3-ui:1.10.0")
+    implementation("androidx.media3:media3-common:1.10.0")
+    implementation("androidx.media3:media3-datasource:1.10.0")
 
     // mp3agic - 轻量级 MP3 元数据提取（作为备用，主要用于 MP3 ID3 标签）
     implementation("com.mpatric:mp3agic:0.9.1")
