@@ -67,7 +67,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace --info
+        run: ./gradlew assembleRelease
 
       # ────────────────────────────────────────────────────────────────
       # Upload the final signed APK as downloadable artifact
