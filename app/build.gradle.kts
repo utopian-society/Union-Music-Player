@@ -86,8 +86,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Coil 图片加载 (3.x 带来 Kotlin Multiplatform 支持)
-    implementation("io.coil-kt:coil-compose:3.0.4")
+    // Coil 图片加载 (2.7.0 是当前稳定版，3.x 仍在开发中)
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
     implementation("androidx.media3:media3-exoplayer:1.5.1")
@@ -97,10 +97,9 @@ dependencies {
     // 音频元数据提取库
     // mp3agic - 轻量级 MP3 元数据提取
     implementation("com.mpatric:mp3agic:0.9.1")
-
-    // JAudioTagger - 支持多种格式的元数据提取 (2026 更新：使用 JitPack 获取 v3.0.1)
-    // v3.0.1 修复了 javax.swing 依赖问题，更适合 Android 开发
-    implementation("com.github.jaudiotagger:jaudiotagger:v3.0.1")
+    // JAudioTagger - 支持多种格式的元数据提取 (2026 更新：使用 JitPack 获取 3.0.1)
+    // 3.0.1 修复了 javax.swing 依赖问题，更适合 Android 开发
+    implementation("com.github.jaudiotagger:jaudiotagger:3.0.1")
 
     // Kotlin 协程 - 用于并行文件扫描 (2026 更新)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
