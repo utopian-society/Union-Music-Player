@@ -114,10 +114,10 @@ dependencies {
 
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
     // 同时用于音频元数据提取（替代 jaudiotagger）
-    implementation("androidx.media3:media3-exoplayer:1.10.0")
-    implementation("androidx.media3:media3-ui:1.10.0")
-    implementation("androidx.media3:media3-common:1.10.0")
-    implementation("androidx.media3:media3-datasource:1.10.0")
+    implementation("androidx.media3:media3-exoplayer:1.9.2")
+    implementation("androidx.media3:media3-ui:1.9.2")
+    implementation("androidx.media3:media3-common:1.9.2")
+    implementation("androidx.media3:media3-datasource:1.9.2")
 
     // mp3agic - 轻量级 MP3 元数据提取（作为备用，主要用于 MP3 ID3 标签）
     implementation("com.mpatric:mp3agic:0.9.1")
