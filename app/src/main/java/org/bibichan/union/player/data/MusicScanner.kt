@@ -1,30 +1,32 @@
 /**
- * MusicScanner.kt - 音乐文件扫描器
- *
- * 使用并行扫描来提高扫描速度，支持提取元数据
- * 支持解析m3u8播放列表文件（包括相对路径）
- */
+* MusicScanner.kt - 音乐文件扫描器
+*
+* 使用并行扫描来提高扫描速度，支持提取元数据
+* 支持解析m3u8播放列表文件（包括相对路径）
+*
+* 2026 现代化更新：使用 MediaMetadataRetriever 提取音频元数据（替代 jaudiotagger）
+*/
 package org.bibichan.union.player.data
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import org.bibichan.union.player.ui.components.LogManager
 
 /**
- * 音乐文件扫描器
- *
- * 使用协程并行扫描指定目录，提取音乐文件元数据
- */
+* 音乐文件扫描器
+*
+* 使用协程并行扫描指定目录，提取音乐文件元数据
+*/
 class MusicScanner(private val context: Context) {
     private val TAG = "MusicScanner"
 
@@ -33,8 +35,8 @@ class MusicScanner(private val context: Context) {
     private val isScanning = AtomicInteger(0)
 
     /**
-     * 扫描状态流
-     */
+    * 扫描状态流
+    */
     sealed class ScanState {
         object Idle : ScanState()
         data class Scanning(val progress: Float, val currentFile: String) : ScanState()
@@ -46,12 +48,12 @@ class MusicScanner(private val context: Context) {
     val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
 
     /**
-     * 扫描指定目录
-     *
-     * @param directoryPath 目录路径
-     * @param recursive 是否递归扫描子目录
-     * @return 扫描结果
-     */
+    * 扫描指定目录
+    *
+    * @param directoryPath 目录路径
+    * @param recursive 是否递归扫描子目录
+    * @return 扫描结果
+    */
     suspend fun scanDirectory(
         directoryPath: String,
         recursive: Boolean = true
@@ -138,8 +140,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 递归扫描目录
-     */
+    * 递归扫描目录
+    */
     private suspend fun scanDirectoryRecursive(
         directory: File,
         channel: Channel<File>,
@@ -170,8 +172,10 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 处理单个音频文件，提取元数据
-     */
+    * 处理单个音频文件，提取元数据
+    * 
+    * 使用 MediaMetadataRetriever 提取音频元数据（替代 jaudiotagger）
+    */
     private fun processAudioFile(file: File): MusicMetadata? {
         return try {
             val extension = file.extension.lowercase()
@@ -181,27 +185,28 @@ class MusicScanner(private val context: Context) {
                 return null
             }
 
-            // 使用jaudiotagger提取元数据
-            val audioFile = AudioFileIO.read(file)
-            val tag = audioFile.tag ?: return createBasicMetadata(file, format)
-
-            // 提取专辑封面
-            val albumArt = extractAlbumArt(tag)
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(file.absolutePath)
 
             // 提取元数据
-            val title = tag.getFirst(FieldKey.TITLE).takeIf { it.isNotBlank() } ?: file.nameWithoutExtension
-            val artist = tag.getFirst(FieldKey.ARTIST).takeIf { it.isNotBlank() } ?: "Unknown Artist"
-            val album = tag.getFirst(FieldKey.ALBUM).takeIf { it.isNotBlank() } ?: "Unknown Album"
-            val genre = tag.getFirst(FieldKey.GENRE).takeIf { it.isNotBlank() }
-            val year = tag.getFirst(FieldKey.YEAR).toIntOrNull()
-            val trackNumber = tag.getFirst(FieldKey.TRACK).toIntOrNull()
+            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                ?.takeIf { it.isNotBlank() } ?: file.nameWithoutExtension
+            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?.takeIf { it.isNotBlank() } ?: "Unknown Artist"
+            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                ?.takeIf { it.isNotBlank() } ?: "Unknown Album"
+            val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                ?.takeIf { it.isNotBlank() }
+            val year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)?.toIntOrNull()
+            val trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)?.toIntOrNull()
 
-            // 获取音频时长
-            val duration = try {
-                (audioFile.audioHeader?.trackLength ?: 0) * 1000L // 转换为毫秒
-            } catch (e: Exception) {
-                0L
-            }
+            // 提取时長（毫秒）
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+
+            // 提取專輯封面
+            val albumArt = extractAlbumArt(retriever)
+
+            retriever.release()
 
             MusicMetadata(
                 id = System.nanoTime(),
@@ -224,8 +229,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 创建基本元数据（当无法读取标签时）
-     */
+    * 创建基本元数据（当无法读取标签时）
+    */
     private fun createBasicMetadata(file: File, format: AudioFormat): MusicMetadata {
         return MusicMetadata(
             id = System.nanoTime(),
@@ -240,14 +245,14 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 从标签中提取专辑封面
-     */
-    private fun extractAlbumArt(tag: org.jaudiotagger.tag.Tag): android.graphics.Bitmap? {
+    * 从 MediaMetadataRetriever 中提取专辑封面
+    * 
+    * 使用 MediaMetadataRetriever.embeddedPicture 提取嵌入式封面图片
+    */
+    private fun extractAlbumArt(retriever: MediaMetadataRetriever): Bitmap? {
         return try {
-            val artworkList = tag.getArtworkList()
-            if (artworkList != null && artworkList.size > 0) {
-                val artwork = artworkList[0]
-                val imageData = artwork.binaryData
+            val imageData = retriever.embeddedPicture
+            if (imageData != null) {
                 BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
             } else {
                 null
@@ -259,16 +264,16 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 解析M3U/M3U8播放列表文件
-     *
-     * 正确处理相对路径：
-     * 如果m3u8文件位于 /sdcard/play.m3u8，包含行 "good/good.m4a"
-     * 则实际文件路径为 /sdcard/good/good.m4a
-     *
-     * @param playlistFile 播放列表文件
-     * @param musicLibrary 音乐库（用于查找已有的歌曲元数据）
-     * @return 解析后的播放列表
-     */
+    * 解析M3U/M3U8播放列表文件
+    *
+    * 正确处理相对路径：
+    * 如果m3u8文件位于 /sdcard/play.m3u8，包含行 "good/good.m4a"
+    * 则实际文件路径为 /sdcard/good/good.m4a
+    *
+    * @param playlistFile 播放列表文件
+    * @param musicLibrary 音乐库（用于查找已有的歌曲元数据）
+    * @return 解析后的播放列表
+    */
     suspend fun parsePlaylistFile(
         playlistFile: File,
         musicLibrary: List<MusicMetadata> = emptyList()
@@ -327,16 +332,16 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 解析播放列表条目路径
-     *
-     * 处理相对路径：
-     * - 相对路径：相对于播放列表文件所在目录解析
-     * - 绝对路径：直接使用
-     *
-     * @param entry 播放列表中的条目（可能是相对或绝对路径）
-     * @param playlistDir 播放列表文件所在目录
-     * @return 解析后的文件，如果无法解析则返回null
-     */
+    * 解析播放列表条目路径
+    *
+    * 处理相对路径：
+    * - 相对路径：相对于播放列表文件所在目录解析
+    * - 绝对路径：直接使用
+    *
+    * @param entry 播放列表中的条目（可能是相对或绝对路径）
+    * @param playlistDir 播放列表文件所在目录
+    * @return 解析后的文件，如果无法解析则返回null
+    */
     private fun resolvePlaylistEntry(entry: String, playlistDir: File?): File? {
         // 移除可能的file://前缀
         val cleanEntry = entry.removePrefix("file://")
@@ -359,13 +364,13 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 从URI解析播放列表（用于从文件选择器选择的播放列表）
-     *
-     * @param context 上下文
-     * @param uri 播放列表文件URI
-     * @param musicLibrary 音乐库
-     * @return 解析后的播放列表
-     */
+    * 从URI解析播放列表（用于从文件选择器选择的播放列表）
+    *
+    * @param context 上下文
+    * @param uri 播放列表文件URI
+    * @param musicLibrary 音乐库
+    * @return 解析后的播放列表
+    */
     suspend fun parsePlaylistFromUri(
         uri: Uri,
         musicLibrary: List<MusicMetadata> = emptyList()
@@ -376,16 +381,16 @@ class MusicScanner(private val context: Context) {
             LogManager.i(TAG, "URI scheme: ${uri.scheme}")
             LogManager.i(TAG, "URI authority: ${uri.authority}")
             LogManager.i(TAG, "URI path: ${uri.path}")
-            
+
             // 从URI获取输入流
             LogManager.d(TAG, "Opening input stream from URI...")
             val inputStream = context.contentResolver.openInputStream(uri)
-            
+
             if (inputStream == null) {
                 LogManager.e(TAG, "Failed to open input stream - contentResolver returned null")
                 return@withContext null
             }
-            
+
             LogManager.d(TAG, "Input stream opened successfully")
 
             // 获取播放列表文件名
@@ -409,15 +414,15 @@ class MusicScanner(private val context: Context) {
             LogManager.d(TAG, "Reading playlist content...")
             val lines = inputStream.bufferedReader().readLines()
             LogManager.i(TAG, "Playlist has ${lines.size} lines")
-            
+
             inputStream.close()
 
             val songs = mutableListOf<MusicMetadata>()
-            
+
             // 尝试获取播放列表文件的实际路径（如果可能）
             val playlistPath = getRealPathFromUri(uri)
             val playlistDir = playlistPath?.let { File(it).parentFile }
-            
+
             LogManager.i(TAG, "Playlist path: $playlistPath")
             LogManager.i(TAG, "Playlist directory: ${playlistDir?.absolutePath ?: "unknown"}")
 
@@ -435,7 +440,7 @@ class MusicScanner(private val context: Context) {
                 val songFile = resolvePlaylistEntry(trimmedLine, playlistDir)
                 if (songFile != null && songFile.exists()) {
                     LogManager.d(TAG, "Resolved to: ${songFile.absolutePath}")
-                    
+
                     val song = musicLibrary.find { it.filePath == songFile.absolutePath }
                     if (song != null) {
                         songs.add(song)
@@ -456,16 +461,16 @@ class MusicScanner(private val context: Context) {
 
             LogManager.i(TAG, "=== PARSING COMPLETE ===")
             LogManager.i(TAG, "Playlist '$playlistName' contains ${songs.size} songs")
-            
+
             val playlist = Playlist(
                 id = System.nanoTime(),
                 name = playlistName,
                 songs = songs,
                 filePath = playlistPath
             )
-            
+
             LogManager.i(TAG, "Created playlist object with ID: ${playlist.id}")
-            
+
             playlist
         } catch (e: Exception) {
             LogManager.e(TAG, "Error parsing playlist from URI: ${e.message}", e)
@@ -474,8 +479,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 尝试从URI获取真实文件路径
-     */
+    * 尝试从URI获取真实文件路径
+    */
     private fun getRealPathFromUri(uri: Uri): String? {
         return try {
             when (uri.scheme) {
@@ -498,8 +503,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 停止扫描
-     */
+    * 停止扫描
+    */
     fun stopScan() {
         scanningJobs.values.forEach { it.cancel() }
         scanningJobs.clear()
@@ -508,8 +513,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-     * 清理资源
-     */
+    * 清理资源
+    */
     fun cleanup() {
         stopScan()
     }

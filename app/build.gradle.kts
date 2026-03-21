@@ -5,7 +5,9 @@
  * 已添加 release 签名配置，支持 GitHub Actions CI 自动签名
  *
  * 2026 现代化更新：更新所有主要依赖到最新版本
+ * 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
  */
+
 plugins {
     id("com.android.application")
     alias(libs.plugins.kotlin.android)
@@ -22,6 +24,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -41,8 +44,7 @@ android {
         getByName("release") {
             // 使用 CI 环境中的签名配置
             signingConfig = signingConfigs.getByName("release")
-            // JAudioTagger 3.x 已修复 javax.swing 依赖问题，可以启用代码压缩
-            // 但为了安全起见，暂时保持关闭
+            // 使用 Media3 ExoPlayer 提取元数据，无 javax.swing 依赖问题
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -90,16 +92,14 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
+    // 同时用于音频元数据提取（替代 jaudiotagger）
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-ui:1.5.1")
     implementation("androidx.media3:media3-common:1.5.1")
+    implementation("androidx.media3:media3-datasource:1.5.1")
 
-    // 音频元数据提取库
-    // mp3agic - 轻量级 MP3 元数据提取
+    // mp3agic - 轻量级 MP3 元数据提取（作为备用，主要用于 MP3 ID3 标签）
     implementation("com.mpatric:mp3agic:0.9.1")
-    // JAudioTagger - 支持多种格式的元数据提取 (2026 更新：使用 JitPack 获取 3.0.1)
-    // 3.0.1 修复了 javax.swing 依赖问题，更适合 Android 开发
-    implementation("com.github.jaudiotagger:jaudiotagger:3.0.1")
 
     // Kotlin 协程 - 用于并行文件扫描 (2026 更新)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
@@ -113,3 +113,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+</Content>
+</write_to_file>
