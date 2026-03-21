@@ -1,8 +1,13 @@
 /**
- * NewLibraryScreen.kt - Material 3 音乐库界面
+ * NewLibraryScreen.kt - Material 3 音乐库界面（性能优化版）
  *
  * 显示本地音乐库，包含特色播放列表、推荐艺术家和最近播放。
  * 使用绿色/黄色/白色配色方案的 Material 3 设计。
+ * 
+ * 性能优化：
+ * - 移除嵌套的 LazyVerticalGrid，使用 LazyRow 替代
+ * - 移除嵌套的 LazyColumn，使用 Column + forEach 替代
+ * - 避免嵌套可滚动组件导致的滚动冲突
  */
 package org.bibichan.union.player.ui.screens
 
@@ -15,9 +20,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,7 +68,7 @@ fun NewLibraryScreen(
     val context = LocalContext.current
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var selectedTab by remember { mutableStateOf(0) }
-    
+
     // 检查存储权限
     val hasPermission = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -148,7 +150,7 @@ fun NewLibraryScreen(
                     )
                 }
 
-                // Recommended Artists Section (NEW)
+                // Recommended Artists Section (性能优化：使用 LazyRow 替代 LazyVerticalGrid)
                 item {
                     RecommendedArtistsSection(
                         artists = getSampleArtists(),
@@ -161,7 +163,7 @@ fun NewLibraryScreen(
                     )
                 }
 
-                // Recently Played Section
+                // Recently Played Section (性能优化：使用 Column 替代嵌套 LazyColumn)
                 item {
                     RecentlyPlayedSection(
                         songs = songs.take(5),
@@ -291,7 +293,7 @@ private fun FeaturedPlaylistCard(
 }
 
 /**
- * 推荐艺术家部分（新增）
+ * 推荐艺术家部分（性能优化：使用 LazyRow 替代 LazyVerticalGrid）
  */
 @Composable
 private fun RecommendedArtistsSection(
@@ -345,14 +347,10 @@ private fun RecommendedArtistsSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Featured artists grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        // Featured artists - 使用 LazyRow 替代 LazyVerticalGrid 避免嵌套滚动冲突
+        LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(artists.take(4)) { artist ->
                 FeaturedArtistCard(
@@ -366,7 +364,7 @@ private fun RecommendedArtistsSection(
 }
 
 /**
- * 特色艺术家卡片
+ * 特色艺术家卡片（性能优化：固定宽度适配 LazyRow）
  */
 @Composable
 private fun FeaturedArtistCard(
@@ -377,7 +375,7 @@ private fun FeaturedArtistCard(
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth()
+            .width(160.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -459,7 +457,7 @@ private fun FeaturedArtistCard(
 }
 
 /**
- * 最近播放部分
+ * 最近播放部分（性能优化：使用 Column 替代嵌套 LazyColumn）
  */
 @Composable
 private fun RecentlyPlayedSection(
@@ -486,12 +484,10 @@ private fun RecentlyPlayedSection(
             }
         }
 
-        // Song list
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
-        ) {
-            items(songs) { song ->
+        // Song list - 使用 Column 替代 LazyColumn 避免嵌套滾動衝突
+        // 因為歌曲數量有限（最多5首），使用 Column 更高效
+        songs.forEach { song ->
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 RecentSongItem(
                     song = song,
                     onClick = { onSongClick(song) }
