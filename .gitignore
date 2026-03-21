@@ -5,3 +5,9 @@
 build
 
 log.txt
+
+*.jks
+
+tmp.sh
+
+keystore_base64.txt
