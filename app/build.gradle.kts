@@ -1,12 +1,12 @@
 /**
- * build.gradle.kts - 模块级构建配置文件
- *
- * 添加了音频元数据提取、ExoPlayer和协程依赖
- * 已添加 release 签名配置，支持 GitHub Actions CI 自动签名
- *
- * 2026 现代化更新：更新所有主要依赖到最新版本
- * 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
- */
+* build.gradle.kts - 模块级构建配置文件
+*
+* 添加了音频元数据提取、ExoPlayer和协程依赖
+* 已添加 release 签名配置，支持 GitHub Actions CI 自动签名
+*
+* 2026 现代化更新：更新所有主要依赖到最新版本
+* 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
+*/
 
 plugins {
     id("com.android.application")
@@ -88,7 +88,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Coil 图片加载 (2.7.0 是当前稳定版，3.x 仍在开发中)
+    // Coil 图片加载 (2.7.0 是当前稳定版)
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
@@ -113,5 +113,3 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
-</Content>
-</write_to_file>
