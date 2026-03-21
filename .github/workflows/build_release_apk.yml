@@ -14,11 +14,11 @@ jobs:
       with:
         fetch-depth: 0 # Needed if you want git-based versioning later
 
-    - name: Set up JDK 21
+    - name: Set up JDK 25
       uses: actions/setup-java@v4
       with:
         distribution: temurin
-        java-version: '21'
+        java-version: '25'
 
     # ────────────────────────────────────────────────────────────────
     # Android SDK setup – most reliable & maintained in 2025–2026

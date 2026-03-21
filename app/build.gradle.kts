@@ -6,11 +6,13 @@
 *
 * 2026 现代化更新：更新所有主要依赖到最新版本
 * 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
-* 使用 PKCS12 格式的 keystore（Java 21+ 默认格式）
+* 使用 PKCS12 格式的 keystore（Java 25+ 默认格式）
 */
 
 plugins {
-    id("com.android.application")
+    id("com.android.application") version "8.13.0" apply false
+    id("com.android.library") version "8.13.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
@@ -32,7 +34,7 @@ android {
     // ── Signing configuration ───────────────────────────────────────────────
     // 使用 debug 签名作为后备，确保 CI 建置可以成功
     // 如需正式发布，请在 GitHub Secrets 中正确配置 ANDROID_KEYSTORE_BASE64
-    // PKCS12 格式是 Java 21+ 的默认格式，更安全且兼容性更好
+    // PKCS12 格式是 Java 25+ 的默认格式，更安全且兼容性更好
     signingConfigs {
         getByName("debug") {
             // 使用默认 debug keystore
@@ -56,7 +58,7 @@ android {
                     storePassword = keystorePassword
                     this.keyAlias = keyAlias
                     this.keyPassword = keyPassword
-                    // PKCS12 是 Java 21+ 的默认格式，无需显式指定
+                    // PKCS12 是 Java 25+ 的默认格式，无需显式指定
                     // 但为了兼容性，可以显式指定
                     storeType = "PKCS12"
                 }
@@ -72,12 +74,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 
     kotlinOptions {
-        jvmTarget = "21"
+        jvmTarget = "25"
     }
 
     buildFeatures {
