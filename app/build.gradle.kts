@@ -6,14 +6,13 @@
  */
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "org.bibichan.union.player"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "org.bibichan.union.player"
@@ -21,6 +20,7 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -44,15 +44,13 @@ android {
             // 强烈建议在 release 中开启代码压缩和资源优化
             isMinifyEnabled = true
             isShrinkResources = true
-
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-
         // debug 保持默认（debug keystore）
-        // getByName("debug") { ... }  // 通常不需要额外配置
+        // getByName("debug") { ... } // 通常不需要额外配置
     }
 
     compileOptions {
@@ -113,7 +111,6 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
