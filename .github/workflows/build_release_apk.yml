@@ -1,9 +1,24 @@
-name: Build & Release Signed APK
+name: Build APK
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+      build_type:
+        description: 'Build type'
+        required: true
+        type: choice
+        options:
+          - release
+          - debug
+        default: 'release'
+
+permissions:
+  contents: write
+  releases: write
 
 jobs:
   build:
@@ -35,11 +50,18 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
+    - name: Update version in build.gradle.kts
+      run: |
+        sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]*/versionCode = ${{ github.run_number }}/" app/build.gradle.kts
+        sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"${{ inputs.version }}\"/" app/build.gradle.kts
+
     - name: Decode & place keystore
+      if: ${{ inputs.build_type == 'release' }}
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release-keystore.p12
 
-    - name: Build signed Release APK
+    - name: Build Release APK
+      if: ${{ inputs.build_type == 'release' }}
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.p12
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -47,36 +69,61 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleRelease
 
-    - name: Get version info
-      id: version
+    - name: Build Debug APK
+      if: ${{ inputs.build_type == 'debug' }}
+      run: ./gradlew assembleDebug
+
+    - name: Prepare release artifact (Release)
+      if: ${{ inputs.build_type == 'release' }}
       run: |
-        VERSION_NAME=$(grep "versionName" app/build.gradle.kts | sed 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/')
-        VERSION_CODE=$(grep "versionCode" app/build.gradle.kts | sed 's/.*versionCode[[:space:]]*=[[:space:]]*\([^,]*\).*/\1/')
-        echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-        echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
-        echo "tag_name=v$VERSION_NAME-build${{ github.run_number }}" >> $GITHUB_OUTPUT
+        mkdir -p release
+        cp app/build/outputs/apk/release/app-release.apk release/UnionMusicPlayer-v${{ inputs.version }}-release.apk
+
+    - name: Prepare release artifact (Debug)
+      if: ${{ inputs.build_type == 'debug' }}
+      run: |
+        mkdir -p debug
+        cp app/build/outputs/apk/debug/app-debug.apk debug/UnionMusicPlayer-v${{ inputs.version }}-debug.apk
+
+    - name: Generate release notes
+      if: ${{ inputs.build_type == 'release' }}
+      id: release_notes
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        TAG_NAME="v${{ inputs.version }}"
+        
+        # Generate release notes using GitHub API
+        RELEASE_NOTES=$(gh api -X POST /repos/${{ github.repository }}/releases/generate-notes \
+          -f tag_name="$TAG_NAME" \
+          -f previous_tag_name="" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2026-03-10" \
+          --jq '.body')
+        
+        # Save to file for multiline string handling
+        echo "$RELEASE_NOTES" > release_notes.md
+        echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
+      if: ${{ inputs.build_type == 'release' }}
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.version.outputs.tag_name }}
-        name: Union Music Player ${{ steps.version.outputs.tag_name }}
-        body: |
-          ## Union Music Player ${{ steps.version.outputs.tag_name }}
-          
-          **版本**: ${{ steps.version.outputs.version_name }}
-          **建置編號**: ${{ github.run_number }}
-          **建置日期**: ${{ github.event.repository.updated_at }}
-          
-          ### 變更內容
-          - 請查看 [Commits](https://github.com/${{ github.repository }}/commits/${{ github.sha }})
-          
-          ### 下載
-          - 下載下方的 APK 檔案進行安裝
+        tag_name: ${{ steps.release_notes.outputs.tag_name }}
+        name: Union Music Player ${{ steps.release_notes.outputs.tag_name }}
+        body_path: release_notes.md
         files: |
-          app/build/outputs/apk/release/app-release.apk
+          release/UnionMusicPlayer-v${{ inputs.version }}-release.apk
         draft: false
         prerelease: false
-        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    - name: Upload Debug APK as artifact
+      if: ${{ inputs.build_type == 'debug' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: UnionMusicPlayer-v${{ inputs.version }}-debug
+        path: debug/UnionMusicPlayer-v${{ inputs.version }}-debug.apk
+        retention-days: 30
