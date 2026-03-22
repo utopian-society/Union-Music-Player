@@ -1,3 +1,5 @@
 1. Do not search and replace content, use write_to_file everytime
 2. Do not write files in 1 single line, maybe via "\n"
 3. Union Music Player is a hires audio player for Android proposed by bibichan, aimed to use Kotlin for UI and C++ for core, now it is still in starting point.
+4. Use mcp tools as priority, not terminal command
+5. If you need to execute terminal command, ask users to manually run it

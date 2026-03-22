@@ -76,8 +76,8 @@ data class MusicMetadata(
                 duration = json.optLong("duration", 0),
                 filePath = json.optString("filePath", ""),
                 uri = Uri.parse(json.optString("uri", "")),
-                albumArtPath = json.optString("albumArtPath", null),
-                genre = json.optString("genre", null),
+                albumArtPath = json.optString("albumArtPath").takeIf { it.isNotEmpty() },
+                genre = json.optString("genre").takeIf { it.isNotEmpty() },
                 year = json.optInt("year", 0).takeIf { it != 0 },
                 trackNumber = json.optInt("trackNumber", 0).takeIf { it != 0 },
                 format = try {
@@ -167,7 +167,7 @@ data class Playlist(
                 id = json.optLong("id", 0),
                 name = json.optString("name", ""),
                 songs = songs,
-                filePath = json.optString("filePath", null),
+                filePath = json.optString("filePath").takeIf { it.isNotEmpty() },
                 creationDate = json.optLong("creationDate", System.currentTimeMillis())
             )
         }

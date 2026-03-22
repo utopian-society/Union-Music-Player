@@ -1,6 +1,5 @@
 /**
- * UnionMusicApp.kt - 主应用Composable
- *
+ * UnionMusicApp.kt - 主应用Composable *
  * 这是应用的主Composable，包含浮动播放器和底部导航栏。
  * 设计参考Apple Music风格：Library、Playlist、More三个主要功能。
  * 使用Material 3的NavigationBar和Scaffold实现标准导航。
@@ -112,15 +111,14 @@ fun UnionMusicApp(
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { paddingValues ->
+    ) { paddingValues -> {
         // 主内容区域
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 根据选中的标签和导航状态显示不同的屏幕
-            when {
+            // 根据选中的标签和导航状态显示不同的屏幕            when {
                 // 专辑详情界面（优先级最高）
                 selectedAlbum != null -> {
                     AlbumDetailScreen(
@@ -157,8 +155,7 @@ fun UnionMusicApp(
                             LogManager.i(TAG, "URI: $uri")
                             LogManager.i(TAG, "URI scheme: ${uri.scheme}")
                             LogManager.i(TAG, "URI path: ${uri.path}")
-                            
-                            scope.launch {
+                                                        scope.launch {
                                 importPlaylist(
                                     musicScanner = musicScanner,
                                     uri = uri,
@@ -193,8 +190,7 @@ fun UnionMusicApp(
                     )
 
                     2 -> MoreScreen(
-                        onRequestPermission = onRequestPermission
-                    )
+                        onRequestPermission = onRequestPermission                    )
                 }
             }
 
@@ -223,10 +219,11 @@ private fun playSongList(
     songs: List<MusicMetadata>,
     startIndex: Int
 ) {
-    LogManager.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
+    // 设置歌曲列表并开始播放
+    musicPlayer.setSongs(songs)
+    musicPlayer.play(startIndex)
     
-    // TODO: 需要更新MusicPlayer以支持MusicMetadata或Song数据类
-    // 当前MusicPlayer只支持资源ID，这里需要扩展
+    LogManager.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
     
     songs.forEachIndexed { index, song ->
         LogManager.d(TAG, "Song $index: ${song.title} - ${song.artist}")
@@ -250,8 +247,7 @@ private suspend fun importPlaylist(
             LogManager.d(TAG, "Calling parsePlaylistFromUri...")
             val result = musicScanner.parsePlaylistFromUri(uri, emptyList())
             LogManager.d(TAG, "parsePlaylistFromUri returned: ${result?.name ?: "null"}")
-            result
-        }
+            result        }
         
         LogManager.i(TAG, "Playlist parsing completed")
         
