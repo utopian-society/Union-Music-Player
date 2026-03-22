@@ -1,9 +1,11 @@
 /**
- * UnionMusicApp.kt - 主应用Composable *
- * 这是应用的主Composable，包含浮动播放器和底部导航栏。
- * 设计参考Apple Music风格：Library、Playlist、More三个主要功能。
- * 使用Material 3的NavigationBar和Scaffold实现标准导航。
+ * UnionMusicApp.kt - 主应用 Composable
+ *
+ * 这是应用的主 Composable，包含浮动播放器和底部导航栏。
+ * 设计参考 Apple Music 风格：Library、Playlist、More 三个主要功能。
+ * 使用 Material 3 的 NavigationBar 和 Scaffold 实现标准导航。
  */
+
 package org.bibichan.union.player.ui
 
 import android.net.Uri
@@ -42,12 +44,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 private const val TAG = "UnionMusicApp"
 
 /**
- * UnionMusicApp - 主应用Composable
+ * UnionMusicApp - 主应用 Composable
  *
- * 使用Scaffold布局，包含：
+ * 使用 Scaffold 布局，包含：
  * - 顶部应用栏（可选）
  * - 主内容区域（基于选中的导航项）
- * - 底部导航栏（绿色NavigationBar）
+ * - 底部导航栏（绿色 NavigationBar）
  * - 浮动播放器
  *
  * @param musicPlayer 音乐播放器实例
@@ -98,10 +100,10 @@ fun UnionMusicApp(
         )
     )
 
-    // 使用Scaffold作为主布局
+    // 使用 Scaffold 作为主布局
     Scaffold(
         bottomBar = {
-            // 底部导航栏 - 绿色NavigationBar
+            // 底部导航栏 - 绿色 NavigationBar
             BottomControlPanel(
                 items = navItems,
                 selectedIndex = selectedTab,
@@ -111,14 +113,15 @@ fun UnionMusicApp(
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { paddingValues -> {
+    ) { paddingValues ->
         // 主内容区域
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 根据选中的标签和导航状态显示不同的屏幕            when {
+            // 根据选中的标签和导航状态显示不同的屏幕
+            when {
                 // 专辑详情界面（优先级最高）
                 selectedAlbum != null -> {
                     AlbumDetailScreen(
@@ -135,16 +138,7 @@ fun UnionMusicApp(
                 // 主标签界面
                 else -> when (selectedTab) {
                     0 -> LibraryScreen(
-                        onAlbumClick = { albumId ->
-                            // 查找选中的专辑并导航到详情
-                            val album = albums.find { it.id == albumId }
-                            if (album != null) {
-                                LogManager.i(TAG, "Navigating to album: ${album.title}")
-                                selectedAlbum = album
-                            } else {
-                                LogManager.w(TAG, "Album not found: $albumId")
-                            }
-                        },
+                        musicPlayer = musicPlayer,
                         onRequestPermission = onRequestPermission
                     )
 
@@ -155,7 +149,7 @@ fun UnionMusicApp(
                             LogManager.i(TAG, "URI: $uri")
                             LogManager.i(TAG, "URI scheme: ${uri.scheme}")
                             LogManager.i(TAG, "URI path: ${uri.path}")
-                                                        scope.launch {
+                            scope.launch {
                                 importPlaylist(
                                     musicScanner = musicScanner,
                                     uri = uri,
@@ -167,7 +161,7 @@ fun UnionMusicApp(
                                             LogManager.i(TAG, "Playlist: ${playlist.name}")
                                             LogManager.i(TAG, "Songs: ${playlist.songs.size}")
                                             playlist.songs.forEachIndexed { index, song ->
-                                                LogManager.d(TAG, "  Song $index: ${song.title} - ${song.artist}")
+                                                LogManager.d(TAG, " Song $index: ${song.title} - ${song.artist}")
                                             }
                                         } else {
                                             LogManager.e(TAG, "=== PLAYLIST IMPORT FAILED ===")
@@ -190,7 +184,8 @@ fun UnionMusicApp(
                     )
 
                     2 -> MoreScreen(
-                        onRequestPermission = onRequestPermission                    )
+                        onRequestPermission = onRequestPermission
+                    )
                 }
             }
 
@@ -222,9 +217,9 @@ private fun playSongList(
     // 设置歌曲列表并开始播放
     musicPlayer.setSongs(songs)
     musicPlayer.play(startIndex)
-    
+
     LogManager.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
-    
+
     songs.forEachIndexed { index, song ->
         LogManager.d(TAG, "Song $index: ${song.title} - ${song.artist}")
     }
@@ -242,18 +237,19 @@ private suspend fun importPlaylist(
     try {
         LogManager.i(TAG, "=== STARTING PLAYLIST PARSING ===")
         LogManager.i(TAG, "URI: $uri")
-        
+
         val playlist = withContext(Dispatchers.IO) {
             LogManager.d(TAG, "Calling parsePlaylistFromUri...")
             val result = musicScanner.parsePlaylistFromUri(uri, emptyList())
             LogManager.d(TAG, "parsePlaylistFromUri returned: ${result?.name ?: "null"}")
-            result        }
-        
+            result
+        }
+
         LogManager.i(TAG, "Playlist parsing completed")
-        
+
         if (playlist != null && playlist.songs.isNotEmpty()) {
             LogManager.i(TAG, "Playlist '${playlist.name}' has ${playlist.songs.size} songs")
-            
+
             // 检查是否已存在同名播放列表
             val existingNames = existingPlaylists.map { it.name }
             if (playlist.name in existingNames) {
