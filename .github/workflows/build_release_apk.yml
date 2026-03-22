@@ -2,17 +2,18 @@ name: Build & Release Signed APK
 
 on:
   push:
-    branches: [ main ] # ← change to 'master', 'develop' etc. if needed
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest # GitHub-hosted runner (Android SDK pre-installed on ubuntu-latest in 2024–2026)
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Needed if you want git-based versioning later
+        fetch-depth: 0
 
     - name: Set up JDK 25
       uses: actions/setup-java@v4
@@ -20,12 +21,8 @@ jobs:
         distribution: temurin
         java-version: '25'
 
-    # ────────────────────────────────────────────────────────────────
-    # Android SDK setup – most reliable & maintained in 2025–2026
-    # Installs cmdline-tools, accepts licenses, adds to PATH
-    # ────────────────────────────────────────────────────────────────
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3 # v3 is latest stable as of late 2024 / 2025–2026
+      uses: android-actions/setup-android@v3
 
     - name: Install required SDK components (compileSdk 35)
       run: |
@@ -33,35 +30,15 @@ jobs:
         "build-tools;35.0.0" \
         "platform-tools" \
         "cmdline-tools;latest"
-        # Accept licenses if any pending (usually handled by setup-android action)
         yes | sdkmanager --licenses
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # ────────────────────────────────────────────────────────────────
-    # Optional: Auto-increment versionCode & versionName
-    # Uses a popular, simple action (you can remove if you prefer manual versioning)
-    # ────────────────────────────────────────────────────────────────
-    - name: Bump version automatically
-      uses: chkfung/android-version-actions@v1.2.2
-      with:
-        gradlePath: app/build.gradle.kts
-        versionCode: ${{ github.run_number }}
-        versionName: "1.0.${{ github.run_number }}" # Customize pattern: "v${{ github.run_number }}", "1.0-rc.${{ github.run_number }}", etc.
-
-    # ────────────────────────────────────────────────────────────────
-    # Decode base64 keystore from secret → file in workspace
-    # PKCS12 format is the default for Java 25+ and is more secure
-    # ────────────────────────────────────────────────────────────────
     - name: Decode & place keystore
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release-keystore.p12
 
-    # ────────────────────────────────────────────────────────────────
-    # Build signed release APK
-    # Your build.gradle.kts reads env vars → signing works automatically
-    # ────────────────────────────────────────────────────────────────
     - name: Build signed Release APK
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.p12
@@ -70,13 +47,36 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleRelease
 
-    # ────────────────────────────────────────────────────────────────
-    # Upload the final signed APK as downloadable artifact
-    # Appears in Actions → Summary → Artifacts
-    # ────────────────────────────────────────────────────────────────
-    - name: Upload signed APK artifact
-      uses: actions/upload-artifact@v4
+    - name: Get version info
+      id: version
+      run: |
+        VERSION_NAME=$(grep "versionName" app/build.gradle.kts | sed 's/.*versionName[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/')
+        VERSION_CODE=$(grep "versionCode" app/build.gradle.kts | sed 's/.*versionCode[[:space:]]*=[[:space:]]*\([^,]*\).*/\1/')
+        echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+        echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "tag_name=v$VERSION_NAME-build${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
-        name: app-release-${{ github.run_number }}
-        path: app/build/outputs/apk/release/app-release.apk
-        retention-days: 7 # optional: keep artifacts for 7 days
+        tag_name: ${{ steps.version.outputs.tag_name }}
+        name: Union Music Player ${{ steps.version.outputs.tag_name }}
+        body: |
+          ## Union Music Player ${{ steps.version.outputs.tag_name }}
+          
+          **版本**: ${{ steps.version.outputs.version_name }}
+          **建置編號**: ${{ github.run_number }}
+          **建置日期**: ${{ github.event.repository.updated_at }}
+          
+          ### 變更內容
+          - 請查看 [Commits](https://github.com/${{ github.repository }}/commits/${{ github.sha }})
+          
+          ### 下載
+          - 下載下方的 APK 檔案進行安裝
+        files: |
+          app/build/outputs/apk/release/app-release.apk
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
