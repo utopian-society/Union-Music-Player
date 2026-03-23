@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.ui.library.components.AlbumCard
 import org.bibichan.union.player.ui.library.data.Album
 
@@ -51,8 +52,10 @@ private const val TAG = "LibraryScreen"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
+    musicPlayer: MusicPlayer,
     onAlbumClick: (String) -> Unit = { albumId -> Log.i(TAG, "Selected album: $albumId") },
     onRequestPermission: () -> Unit = {},
+    onPermissionResult: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: LibraryViewModel = viewModel()
@@ -60,6 +63,7 @@ fun LibraryScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val hasPermission by viewModel.hasPermission.collectAsState()
+    val hasScannedFolders by viewModel.hasScannedFolders.collectAsState()
     val topArtists by viewModel.topArtists.collectAsState()
 
     // Search state
@@ -77,6 +81,16 @@ fun LibraryScreen(
             }
         }
     }}
+
+    // 當權限狀態改變時，調用心 PermissionResult 回調
+    var previousHasPermission by remember { mutableStateOf(hasPermission) }
+    LaunchedEffect(hasPermission) {
+        if (!previousHasPermission && hasPermission) {
+            // 權限從 false 變為 true，刷新 UI
+            onPermissionResult()
+        }
+        previousHasPermission = hasPermission
+    }
 
     Scaffold(
         topBar = {
@@ -99,6 +113,12 @@ fun LibraryScreen(
                 !hasPermission -> {
                     PermissionRequiredContent(onRequestPermission = onRequestPermission)
                 }
+                !hasScannedFolders -> {
+                    // 顯示空狀態，提示用戶掃描資料夾
+                    EmptyLibraryState(
+                        onScanClick = onRequestPermission
+                    )
+                }
                 isLoading -> {
                     LoadingContent()
                 }
@@ -106,6 +126,12 @@ fun LibraryScreen(
                     ErrorContent(
                         message = error ?: "Unknown error",
                         onRetry = { viewModel.refresh() }
+                    )
+                }
+                filteredAlbums.isEmpty() -> {
+                    EmptyStateContent(
+                        searchQuery = searchQuery,
+                        onScanFiles = { viewModel.refresh() }
                     )
                 }
                 else -> {
@@ -703,7 +729,60 @@ private fun ErrorContent(
 }
 
 /**
- * Empty State Content
+ * Empty Library State - 當沒有掃描任何資料夾時顯示
+ */
+@Composable
+private fun EmptyLibraryState(
+    onScanClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.LibraryMusic,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "No Music Found",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Scan a folder to add your music",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            FilledTonalButton(
+                onClick = onScanClick,
+                modifier = Modifier.height(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FolderOpen,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Scan Local Files",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Empty State Content - 當搜索無結果時顯示
  */
 @Composable
 private fun EmptyStateContent(

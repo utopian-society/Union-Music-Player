@@ -1,7 +1,7 @@
 /**
- * MoreScreen.kt - 更多选项界面
+ * MoreScreen.kt - 更多選項界面
  *
- * 包含设置、文件扫描、日志面板等功能。
+ * 包含設置、文件掃描、日誌面板等功能。
  */
 package org.bibichan.union.player.ui.screens
 
@@ -25,33 +25,33 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.bibichan.union.player.ui.components.LogPanel
 import org.bibichan.union.player.ui.components.LogManager
+import org.bibichan.union.player.ui.library.LibraryViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    onPermissionResult: () -> Unit = {},
+    onFolderPickerRequest: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showAboutDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    var showScanningDialog by remember { mutableStateOf(false) }
-    var scanProgress by remember { mutableStateOf(0f) }
-    var scanStatus by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
-    // 检查存储权限
-    val hasPermission = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+    // 使用 LibraryViewModel 來獲取權限狀態
+    val libraryViewModel: LibraryViewModel = viewModel()
+    val hasPermission by libraryViewModel.hasPermission.collectAsState()
+
+    // 監聽權限狀態變化
+    var previousHasPermission by remember { mutableStateOf(hasPermission) }
+    LaunchedEffect(hasPermission) {
+        if (!previousHasPermission && hasPermission) {
+            // 權限從 false 變為 true，調用回調
+            onPermissionResult()
         }
+        previousHasPermission = hasPermission
     }
 
     Scaffold(
@@ -78,54 +78,27 @@ fun MoreScreen(
                 .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // 日志面板（放在顶部以便调试）
+            // 日誌面板（放在頂部以便調試）
             LogPanel(
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 文件扫描选项
+            // 文件掃描選項 - 使用 SAF 資料夾選擇器
             SettingsItem(
                 icon = Icons.Default.FolderOpen,
                 title = "Scan Local Files",
-                subtitle = if (hasPermission) "Scan your device for music files" else "Requires storage permission",
+                subtitle = "Select a folder to scan for music files",
                 onClick = {
-                    if (hasPermission) {
-                        // 开始扫描
-                        showScanningDialog = true
-                        scanStatus = "Starting scan..."
-                        scanProgress = 0f
-                        
-                        LogManager.i("MoreScreen", "Starting file scan")
-
-                        // 扫描外部存储目录
-                        scope.launch {
-                            try {
-                                for (i in 1..100) {
-                                    scanProgress = i / 100f
-                                    scanStatus = "Scanning... $i%"
-                                    kotlinx.coroutines.delay(50)
-                                }
-                                scanStatus = "Scan complete! Found music files."
-                                LogManager.i("MoreScreen", "File scan completed")
-                                kotlinx.coroutines.delay(1500)
-                                showScanningDialog = false
-                            } catch (e: Exception) {
-                                scanStatus = "Error: ${e.message}"
-                                LogManager.e("MoreScreen", "Scan error: ${e.message}", e)
-                            }
-                        }
-                    } else {
-                        LogManager.w("MoreScreen", "Storage permission not granted, requesting...")
-                        onRequestPermission()
-                    }
+                    LogManager.i("MoreScreen", "Opening folder picker...")
+                    onFolderPickerRequest()
                 }
             )
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // 设置
+            // 設置
             SettingsItem(
                 icon = Icons.Default.Settings,
                 title = "Settings",
@@ -138,7 +111,7 @@ fun MoreScreen(
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // 主题设置
+            // 主題設置
             SettingsItem(
                 icon = Icons.Default.Palette,
                 title = "Theme",
@@ -151,7 +124,7 @@ fun MoreScreen(
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // 音质设置
+            // 音質設置
             SettingsItem(
                 icon = Icons.Default.GraphicEq,
                 title = "Audio Quality",
@@ -164,7 +137,7 @@ fun MoreScreen(
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // 关于
+            // 關於
             SettingsItem(
                 icon = Icons.Default.Info,
                 title = "About",
@@ -179,7 +152,7 @@ fun MoreScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 应用信息卡片
+            // 應用信息卡片
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -218,7 +191,7 @@ fun MoreScreen(
         }
     }
 
-    // 扫描进度对话框
+    // 掃描進度對話框
     if (showScanningDialog) {
         AlertDialog(
             onDismissRequest = { showScanningDialog = false },
@@ -245,7 +218,7 @@ fun MoreScreen(
         )
     }
 
-    // 设置对话框
+    // 設置對話框
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
@@ -271,7 +244,7 @@ fun MoreScreen(
         )
     }
 
-    // 关于对话框
+    // 關於對話框
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },

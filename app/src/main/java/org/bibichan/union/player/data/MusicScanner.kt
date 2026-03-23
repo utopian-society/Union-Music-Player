@@ -503,8 +503,8 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-    * 停止扫描
-    */
+     * 停止扫描
+     */
     fun stopScan() {
         scanningJobs.values.forEach { it.cancel() }
         scanningJobs.clear()
@@ -513,9 +513,189 @@ class MusicScanner(private val context: Context) {
     }
 
     /**
-    * 清理资源
-    */
+     * 清理资源
+     */
     fun cleanup() {
         stopScan()
+    }
+
+    /**
+     * 掃描 SAF DocumentFile 資料夾
+     *
+     * 使用 Android Storage Access Framework (SAF) 掃描用戶選擇的資料夾。
+     * 支援遞歸掃描子目錄，提取音頻文件元數據。
+     *
+     * @param folderUri 資料夾 URI (來自 ActivityResultContracts.OpenDocumentTree)
+     * @param context 上下文
+     * @return 掃描結果
+     */
+    suspend fun scanDocumentFolder(
+        folderUri: Uri,
+        context: Context
+    ): ScanResult = withContext(Dispatchers.IO) {
+        if (isScanning.get() > 0) {
+            Log.w(TAG, "Already scanning, skipping new scan request")
+            return@withContext ScanResult()
+        }
+
+        isScanning.set(1)
+        val startTime = System.currentTimeMillis()
+
+        try {
+            _scanState.value = ScanState.Scanning(0f, "Starting scan...")
+
+            // 從 URI 創建 DocumentFile
+            val documentFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, folderUri)
+            if (documentFile == null || !documentFile.exists()) {
+                _scanState.value = ScanState.Error("Invalid folder URI: $folderUri")
+                return@withContext ScanResult()
+            }
+
+            val songs = ConcurrentHashMap<MusicMetadata, MusicMetadata>()
+            val scannedFiles = AtomicInteger(0)
+            val scannedDirs = AtomicInteger(0)
+
+            // 創建通道用於並行處理
+            val fileChannel = Channel<androidx.documentfile.provider.DocumentFile>(capacity = Channel.UNLIMITED)
+
+            // 啟動多個消費者協程並行處理文件
+            val consumers = List(4) { consumerId ->
+                launch {
+                    for (file in fileChannel) {
+                        try {
+                            val metadata = processDocumentFile(file, context)
+                            if (metadata != null) {
+                                songs[metadata] = metadata
+                                Log.d(TAG, "Consumer $consumerId: Processed ${file.name}")
+                            }
+
+                            // 更新進度
+                            val processed = scannedFiles.incrementAndGet()
+                            _scanState.value = ScanState.Scanning(
+                                progress = processed.toFloat() / 100,
+                                currentFile = file.name ?: "Unknown"
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Consumer $consumerId error processing ${file.name}", e)
+                        }
+                    }
+                }
+            }
+
+            // 遞歸掃描 DocumentFile 目錄
+            val scanJob = launch {
+                scanDocumentFileRecursive(documentFile, fileChannel, scannedDirs)
+                fileChannel.close()
+            }
+
+            // 等待所有文件處理完成
+            scanJob.join()
+            consumers.forEach { it.join() }
+
+            val scanTime = System.currentTimeMillis() - startTime
+            val result = ScanResult(
+                songs = songs.values.toList().sortedBy { it.title },
+                playlists = emptyList(),
+                scanTime = scanTime,
+                scannedDirectories = scannedDirs.get(),
+                scannedFiles = scannedFiles.get()
+            )
+
+            _scanState.value = ScanState.Completed(result)
+            Log.i(TAG, "Document scan completed: ${result.songs.size} songs, ${scanTime}ms")
+
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Document scan error", e)
+            _scanState.value = ScanState.Error(e.message ?: "Unknown error")
+            ScanResult()
+        } finally {
+            isScanning.set(0)
+        }
+    }
+
+    /**
+     * 遞歸掃描 DocumentFile 目錄
+     */
+    private suspend fun scanDocumentFileRecursive(
+        directory: androidx.documentfile.provider.DocumentFile,
+        channel: Channel<androidx.documentfile.provider.DocumentFile>,
+        dirCounter: AtomicInteger
+    ) {
+        dirCounter.incrementAndGet()
+        directory.listFiles().forEach { file ->
+            when {
+                file.isDirectory -> {
+                    scanDocumentFileRecursive(file, channel, dirCounter)
+                }
+                file.isFile -> {
+                    val name = file.name ?: ""
+                    val extension = name.substringAfterLast('.', "").lowercase()
+                    if (AudioFormat.supportedExtensions.contains(extension)) {
+                        channel.send(file)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 處理單個 DocumentFile 音頻文件
+     */
+    private fun processDocumentFile(
+        documentFile: androidx.documentfile.provider.DocumentFile,
+        context: Context
+    ): MusicMetadata? {
+        return try {
+            val name = documentFile.name ?: return null
+            val extension = name.substringAfterLast('.', "").lowercase()
+            val format = AudioFormat.fromExtension(extension)
+
+            if (format == AudioFormat.UNKNOWN) {
+                return null
+            }
+
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(context, documentFile.uri)
+
+            // 提取元數據
+            val title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                ?.takeIf { it.isNotBlank() } ?: name.substringBeforeLast('.')
+            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?.takeIf { it.isNotBlank() } ?: "Unknown Artist"
+            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                ?.takeIf { it.isNotBlank() } ?: "Unknown Album"
+            val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                ?.takeIf { it.isNotBlank() }
+            val year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)?.toIntOrNull()
+            val trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)?.toIntOrNull()
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+
+            // 提取專輯封面
+            val albumArt = extractAlbumArt(retriever)
+
+            retriever.release()
+
+            // 嘗試獲取真實路徑（如果可能）
+            val filePath = getRealPathFromUri(documentFile.uri) ?: documentFile.uri.toString()
+
+            MusicMetadata(
+                id = System.nanoTime(),
+                title = title,
+                artist = artist,
+                album = album,
+                duration = duration,
+                filePath = filePath,
+                uri = documentFile.uri,
+                albumArt = albumArt,
+                genre = genre,
+                year = year,
+                trackNumber = trackNumber,
+                format = format
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing DocumentFile: ${documentFile.name}", e)
+            null
+        }
     }
 }

@@ -2,8 +2,10 @@
  * UnionMusicApp.kt - 主应用 Composable
  *
  * 这是应用的主 Composable，包含浮动播放器和底部导航栏。
- * 设计参考 Apple Music 风格：Library、Playlist、More 三个主要功能。
+ * 设计参考 Apple Music 风格：Library、Playlist、Files、More 四个主要功能。
  * 使用 Material 3 的 NavigationBar 和 Scaffold 实现标准导航。
+ * 
+ * 2026-03-22: 新增 Files 標籤頁
  */
 
 package org.bibichan.union.player.ui
@@ -46,7 +48,7 @@ private const val TAG = "UnionMusicApp"
 /**
  * UnionMusicApp - 主应用 Composable
  *
- * 使用 Scaffold 布局，包含：
+ * 使用 Scaffold 作为主布局，包含：
  * - 顶部应用栏（可选）
  * - 主内容区域（基于选中的导航项）
  * - 底部导航栏（绿色 NavigationBar）
@@ -54,12 +56,16 @@ private const val TAG = "UnionMusicApp"
  *
  * @param musicPlayer 音乐播放器实例
  * @param onRequestPermission 请求权限的回调
+ * @param onPermissionResult 权限请求结果回调（用于刷新 UI）
+ * @param onFolderPickerRequest 請求打開資料夾選擇器的回調
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnionMusicApp(
     musicPlayer: MusicPlayer,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    onPermissionResult: () -> Unit = {},
+    onFolderPickerRequest: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,7 +87,7 @@ fun UnionMusicApp(
     val libraryViewModel: LibraryViewModel = viewModel()
     val albums by libraryViewModel.albums.collectAsState()
 
-    // 定义底部导航项
+    // 定义底部导航项 - 4 個標籤
     val navItems = listOf(
         NavItem(
             route = "library",
@@ -92,6 +98,11 @@ fun UnionMusicApp(
             route = "playlist",
             icon = Icons.Default.QueueMusic,
             label = "Playlist"
+        ),
+        NavItem(
+            route = "files",
+            icon = Icons.Default.Folder,
+            label = "Files"
         ),
         NavItem(
             route = "more",
@@ -107,9 +118,7 @@ fun UnionMusicApp(
             BottomControlPanel(
                 items = navItems,
                 selectedIndex = selectedTab,
-                onItemSelected = { index ->
-                    selectedTab = index
-                }
+                onItemSelected = { index -> selectedTab = index }
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -139,7 +148,8 @@ fun UnionMusicApp(
                 else -> when (selectedTab) {
                     0 -> LibraryScreen(
                         musicPlayer = musicPlayer,
-                        onRequestPermission = onRequestPermission
+                        onRequestPermission = onRequestPermission,
+                        onPermissionResult = onPermissionResult
                     )
 
                     1 -> PlaylistManagementScreen(
@@ -183,8 +193,15 @@ fun UnionMusicApp(
                         }
                     )
 
-                    2 -> MoreScreen(
-                        onRequestPermission = onRequestPermission
+                    2 -> FilesScreen(
+                        musicPlayer = musicPlayer,
+                        onFolderPickerRequest = onFolderPickerRequest
+                    )
+
+                    3 -> MoreScreen(
+                        onRequestPermission = onRequestPermission,
+                        onPermissionResult = onPermissionResult,
+                        onFolderPickerRequest = onFolderPickerRequest
                     )
                 }
             }
