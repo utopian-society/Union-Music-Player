@@ -1,9 +1,9 @@
 /**
- * FilesScreen.kt - 應用內檔案瀏覽器
- *
- * Material 3 設計風格的檔案瀏覽器，用於瀏覽已掃描的本地音樂檔案。
- * 2026-03-22: 新增功能
- */
+* FilesScreen.kt - 應用內檔案瀏覽器
+*
+* Material 3 設計風格的檔案瀏覽器，用於瀏覽已掃描的本地音樂檔案。
+* 2026-03-22: 新增功能
+*/
 package org.bibichan.union.player.ui.screens
 
 import android.net.Uri
@@ -41,12 +41,12 @@ import java.util.*
 private const val TAG = "FilesScreen"
 
 /**
- * Files Screen - 應用內檔案瀏覽器
- *
- * @param musicPlayer 音樂播放器實例
- * @param onFolderPickerRequest 請求打開資料夾選擇器的回調
- * @param modifier 修飾符
- */
+* Files Screen - 應用內檔案瀏覽器
+*
+* @param musicPlayer 音樂播放器實例
+* @param onFolderPickerRequest 請求打開資料夾選擇器的回調
+* @param modifier 修飾符
+*/
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilesScreen(
@@ -146,8 +146,8 @@ fun FilesScreen(
 }
 
 /**
- * 資料夾列表視圖
- */
+* 資料夾列表視圖
+*/
 @Composable
 private fun FolderListView(
     folders: List<ScannedFolder>,
@@ -175,8 +175,8 @@ private fun FolderListView(
 }
 
 /**
- * 資料夾項目
- */
+* 資料夾項目
+*/
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderItem(
@@ -274,8 +274,8 @@ private fun FolderItem(
 }
 
 /**
- * 歌曲列表視圖
- */
+* 歌曲列表視圖
+*/
 @Composable
 private fun SongListView(
     songs: List<MusicMetadata>,
@@ -303,8 +303,8 @@ private fun SongListView(
 }
 
 /**
- * 歌曲項目
- */
+* 歌曲項目
+*/
 @Composable
 private fun SongItem(
     song: MusicMetadata,
@@ -365,7 +365,7 @@ private fun SongItem(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${song.artist} • ${formatDuration(song.duration)}",
+                text = "${song.artist} • ${formatDurationForFiles(song.duration)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -376,8 +376,8 @@ private fun SongItem(
 }
 
 /**
- * 空狀態 - 沒有掃描任何資料夾
- */
+* 空狀態 - 沒有掃描任何資料夾
+*/
 @Composable
 private fun EmptyFilesState(
     onAddFolderClick: () -> Unit
@@ -429,8 +429,8 @@ private fun EmptyFilesState(
 }
 
 /**
- * 空資料夾狀態
- */
+* 空資料夾狀態
+*/
 @Composable
 private fun EmptyFolderState() {
     Box(
@@ -463,8 +463,8 @@ private fun EmptyFolderState() {
 }
 
 /**
- * 載入中狀態
- */
+* 載入中狀態
+*/
 @Composable
 private fun LoadingContent() {
     Box(
@@ -488,8 +488,8 @@ private fun LoadingContent() {
 }
 
 /**
- * 播放歌曲
- */
+* 播放歌曲
+*/
 private fun playSong(musicPlayer: MusicPlayer, songs: List<MusicMetadata>, startIndex: Int) {
     Log.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
     musicPlayer.setSongs(songs)
@@ -497,17 +497,17 @@ private fun playSong(musicPlayer: MusicPlayer, songs: List<MusicMetadata>, start
 }
 
 /**
- * 格式化時間戳
- */
+* 格式化時間戳
+*/
 private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
 /**
- * 格式化時長
- */
-private fun formatDuration(durationMs: Long): String {
+* 格式化時長
+*/
+private fun formatDurationForFiles(durationMs: Long): String {
     val seconds = (durationMs / 1000).toInt()
     val minutes = seconds / 60
     val remainingSeconds = seconds % 60

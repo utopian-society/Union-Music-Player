@@ -1,11 +1,11 @@
 /**
- * ScannedFilesManager.kt - 已掃描檔案管理器
- *
- * 管理用戶選擇掃描的資料夾，提供持久化存儲和狀態管理。
- * 使用 SharedPreferences 存儲已掃描的資料夾 URI 列表。
- *
- * 2026-03-22: 新增功能，支援用戶選擇資料夾掃描
- */
+* ScannedFilesManager.kt - 已掃描檔案管理器
+*
+* 管理用戶選擇掃描的資料夾，提供持久化存儲和狀態管理。
+* 使用 SharedPreferences 存儲已掃描的資料夾 URI 列表。
+*
+* 2026-03-22: 新增功能，支援用戶選擇資料夾掃描
+*/
 package org.bibichan.union.player.data
 
 import android.content.Context
@@ -21,14 +21,14 @@ import org.json.JSONObject
 private const val TAG = "ScannedFilesManager"
 
 /**
- * 掃描資料夾資料
- *
- * @param uri 資料夾 URI (來自 SAF)
- * @param name 顯示名稱
- * @param path 資料夾路徑
- * @param scanTime 掃描時間 (毫秒時間戳)
- * @param songCount 掃描到的歌曲數量
- */
+* 掃描資料夾資料
+*
+* @param uri 資料夾 URI (來自 SAF)
+* @param name 顯示名稱
+* @param path 資料夾路徑
+* @param scanTime 掃描時間 (毫秒時間戳)
+* @param songCount 掃描到的歌曲數量
+*/
 data class ScannedFolder(
     val uri: Uri,
     val name: String,
@@ -60,8 +60,8 @@ data class ScannedFolder(
 }
 
 /**
- * 檔案樹節點 - 用於 Files 頁面的樹狀結構顯示
- */
+* 檔案樹節點 - 用於 Files 頁面的樹狀結構顯示
+*/
 data class FileTreeNode(
     val name: String,
     val uri: Uri,
@@ -71,13 +71,13 @@ data class FileTreeNode(
 )
 
 /**
- * 已掃描檔案管理器
- *
- * 單例模式，管理已掃描的資料夾和音樂檔案。
- * - 使用 SharedPreferences 持久化存儲已掃描的資料夾列表
- * - 提供掃描結果的緩存
- * - 支援 Flow 響應式更新
- */
+* 已掃描檔案管理器
+*
+* 單例模式，管理已掃描的資料夾和音樂檔案。
+* - 使用 SharedPreferences 持久化存儲已掃描的資料夾列表
+* - 提供掃描結果的緩存
+* - 支援 Flow 響應式更新
+*/
 class ScannedFilesManager private constructor(private val context: Context) {
 
     companion object {
@@ -133,12 +133,12 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 添加掃描的資料夾
-     *
-     * @param folderUri 資料夾 URI (來自 SAF)
-     * @param name 顯示名稱
-     * @param songs 掃描到的歌曲列表
-     */
+    * 添加掃描的資料夾
+    *
+    * @param folderUri 資料夾 URI (來自 SAF)
+    * @param name 顯示名稱
+    * @param songs 掃描到的歌曲列表
+    */
     fun addScannedFolder(folderUri: Uri, name: String, path: String, songs: List<MusicMetadata>) {
         val folder = ScannedFolder(
             uri = folderUri,
@@ -150,7 +150,7 @@ class ScannedFilesManager private constructor(private val context: Context) {
 
         // 檢查是否已存在相同 URI 的資料夾
         val existingIndex = _scannedFolders.value.indexOfFirst { it.uri == folderUri }
-        
+
         if (existingIndex >= 0) {
             // 更新現有資料夾
             val updatedFolders = _scannedFolders.value.toMutableList()
@@ -172,8 +172,8 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 移除掃描的資料夾
-     */
+    * 移除掃描的資料夾
+    */
     fun removeScannedFolder(folderUri: Uri) {
         val folder = _scannedFolders.value.find { it.uri == folderUri }
         if (folder != null) {
@@ -186,26 +186,26 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 獲取指定資料夾的歌曲
-     */
+    * 獲取指定資料夾的歌曲
+    */
     fun getSongsInFolder(folderUri: Uri): List<MusicMetadata> {
         return _songsByFolder.value[folderUri] ?: emptyList()
     }
 
     /**
-     * 更新所有歌曲列表（合併所有資料夾的歌曲）
-     */
+    * 更新所有歌曲列表（合併所有資料夾的歌曲）
+    */
     private fun updateScannedSongs() {
         val allSongs = _songsByFolder.value.values.flatten()
-            .distinctBy { it.path } // 去重，避免同一首歌被多次添加
+            .distinctBy { it.filePath } // 去重，避免同一首歌被多次添加
         _scannedSongs.value = allSongs
         Log.d(TAG, "Total scanned songs: ${allSongs.size}")
     }
 
     /**
-     * 刷新所有資料夾（重新掃描）
-     * 這個方法需要 MusicScanner 來執行實際掃描
-     */
+    * 刷新所有資料夾（重新掃描）
+    * 這個方法需要 MusicScanner 來執行實際掃描
+    */
     suspend fun refreshAllFolders(scanner: MusicScanner, context: Context) {
         _isScanning.value = true
         try {
@@ -214,12 +214,12 @@ class ScannedFilesManager private constructor(private val context: Context) {
 
             for (folder in folders) {
                 _scanProgress.value = completed.toFloat() / folders.size
-                
+
                 val result = scanner.scanDocumentFolder(folder.uri, context)
                 if (result.songs.isNotEmpty()) {
                     addScannedFolder(folder.uri, folder.name, folder.path, result.songs)
                 }
-                
+
                 completed++
             }
 
@@ -230,8 +230,8 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 從 SharedPreferences 載入資料
-     */
+    * 從 SharedPreferences 載入資料
+    */
     private fun loadFromPreferences() {
         try {
             // 載入資料夾列表
@@ -255,8 +255,8 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 保存到 SharedPreferences
-     */
+    * 保存到 SharedPreferences
+    */
     private fun saveToPreferences() {
         try {
             // 保存資料夾列表
@@ -275,8 +275,8 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 清除所有掃描資料
-     */
+    * 清除所有掃描資料
+    */
     fun clearAll() {
         _scannedFolders.value = emptyList()
         _scannedSongs.value = emptyList()
@@ -286,26 +286,26 @@ class ScannedFilesManager private constructor(private val context: Context) {
     }
 
     /**
-     * 獲取資料夾的樹狀結構（用於 Files 頁面）
-     */
+    * 獲取資料夾的樹狀結構（用於 Files 頁面）
+    */
     fun getFileTreeForFolder(folderUri: Uri): List<FileTreeNode> {
         val songs = _songsByFolder.value[folderUri] ?: return emptyList()
-        
+
         // 按路徑構建樹狀結構
         val rootNodes = mutableListOf<FileTreeNode>()
         val pathMap = mutableMapOf<String, MutableList<FileTreeNode>>()
 
         // 按路徑排序
-        val sortedSongs = songs.sortedBy { it.path }
-        
+        val sortedSongs = songs.sortedBy { it.filePath }
+
         for (song in sortedSongs) {
-            val pathParts = song.path.split("/")
+            val pathParts = song.filePath.split("/")
             var currentPath = ""
-            
+
             for (i in 0 until pathParts.size - 1) {
                 val dirName = pathParts[i]
                 val dirPath = if (currentPath.isEmpty()) dirName else "$currentPath/$dirName"
-                
+
                 // 檢查是否已存在此目錄節點
                 if (!pathMap.containsKey(dirPath)) {
                     val node = FileTreeNode(
@@ -314,7 +314,7 @@ class ScannedFilesManager private constructor(private val context: Context) {
                         isDirectory = true,
                         children = emptyList()
                     )
-                    
+
                     if (currentPath.isEmpty()) {
                         rootNodes.add(node)
                     } else {
@@ -322,18 +322,18 @@ class ScannedFilesManager private constructor(private val context: Context) {
                     }
                     pathMap[dirPath] = mutableListOf()
                 }
-                
+
                 currentPath = dirPath
             }
-            
+
             // 添加歌曲節點
             val songNode = FileTreeNode(
                 name = song.title,
-                uri = Uri.parse(song.path),
+                uri = Uri.parse(song.filePath),
                 isDirectory = false,
                 song = song
             )
-            
+
             val parentPath = pathParts.dropLast(1).joinToString("/")
             if (parentPath.isEmpty()) {
                 rootNodes.add(songNode)
