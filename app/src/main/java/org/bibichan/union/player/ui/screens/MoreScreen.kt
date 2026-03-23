@@ -191,33 +191,6 @@ fun MoreScreen(
         }
     }
 
-    // 掃描進度對話框
-    if (showScanningDialog) {
-        AlertDialog(
-            onDismissRequest = { showScanningDialog = false },
-            title = { Text("Scanning Local Files") },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    LinearProgressIndicator(
-                        progress = { scanProgress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = scanStatus)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showScanningDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-            shape = MaterialTheme.shapes.large
-        )
-    }
-
     // 設置對話框
     if (showSettingsDialog) {
         AlertDialog(
