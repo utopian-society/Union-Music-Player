@@ -55,7 +55,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -204,7 +203,7 @@ private fun FolderItem(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    val showDeleteDialog = remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -255,7 +254,7 @@ private fun FolderItem(
                 )
             }
 
-            IconButton(onClick = { showDeleteDialog = true }) {
+            IconButton(onClick = { showDeleteDialog.value = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "More options",
@@ -265,23 +264,23 @@ private fun FolderItem(
         }
     }
 
-    if (showDeleteDialog) {
+    if (showDeleteDialog.value) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = { showDeleteDialog.value = false },
             title = { Text("Remove Folder") },
             text = { Text("Remove \"${folder.name}\" from your library? The files will not be deleted.") },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
                         onDelete()
-                        showDeleteDialog = false
+                        showDeleteDialog.value = false
                     }
                 ) {
                     Text("Remove", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteDialog = false }) {
+                androidx.compose.material3.TextButton(onClick = { showDeleteDialog.value = false }) {
                     Text("Cancel")
                 }
             }

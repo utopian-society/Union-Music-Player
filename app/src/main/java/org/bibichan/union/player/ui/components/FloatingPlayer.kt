@@ -36,7 +36,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -140,13 +139,13 @@ fun MiniPlayer(
             modifier = Modifier.weight(1f)
         ) {
             currentSong?.let { song ->
-                Text(
+                androidx.compose.material3.Text(
                     text = song.title,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
+                androidx.compose.material3.Text(
                     text = song.artist,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -154,11 +153,11 @@ fun MiniPlayer(
                     overflow = TextOverflow.Ellipsis
                 )
             } ?: run {
-                Text(
+                androidx.compose.material3.Text(
                     text = "No song selected",
                     style = MaterialTheme.typography.titleMedium
                 )
-                Text(
+                androidx.compose.material3.Text(
                     text = "Tap a song to play",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -212,7 +211,7 @@ fun ExpandedPlayer(
         Spacer(modifier = Modifier.size(32.dp))
 
         currentSong?.let { song ->
-            Text(
+            androidx.compose.material3.Text(
                 text = song.title,
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground
@@ -220,13 +219,13 @@ fun ExpandedPlayer(
 
             Spacer(modifier = Modifier.size(8.dp))
 
-            Text(
+            androidx.compose.material3.Text(
                 text = song.artist,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } ?: run {
-            Text(
+            androidx.compose.material3.Text(
                 text = "No song selected",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
