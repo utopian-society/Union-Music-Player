@@ -1,31 +1,63 @@
 /**
-* FilesScreen.kt - 應用內檔案瀏覽器
-*
-* Material 3 設計風格的檔案瀏覽器，用於瀏覽已掃描的本地音樂檔案。
-* 2026-03-22: 新增功能
-*/
+ * FilesScreen.kt - 應用內檔案瀏覽器
+ *
+ * Material 3 設計風格的檔案瀏覽器，用於瀏覽已掃描的本地音樂檔案。
+ * 2026-03-24: 增加目錄層級顯示
+ */
 package org.bibichan.union.player.ui.screens
 
 import android.net.Uri
 import android.util.Log
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,17 +68,11 @@ import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicMetadata
 import org.bibichan.union.player.data.ScannedFolder
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 private const val TAG = "FilesScreen"
 
-/**
-* Files Screen - 應用內檔案瀏覽器
-*
-* @param musicPlayer 音樂播放器實例
-* @param onFolderPickerRequest 請求打開資料夾選擇器的回調
-* @param modifier 修飾符
-*/
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilesScreen(
@@ -58,18 +84,16 @@ fun FilesScreen(
     val scannedFolders by viewModel.scannedFolders.collectAsState()
     val currentFolderUri by viewModel.currentFolderUri.collectAsState()
     val currentFolderName by viewModel.currentFolderName.collectAsState()
-    val currentSongs by viewModel.currentSongs.collectAsState()
+    val directoryContents by viewModel.currentDirectoryContents.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = currentFolderName,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
                 navigationIcon = {
@@ -94,7 +118,7 @@ fun FilesScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
@@ -112,7 +136,6 @@ fun FilesScreen(
                     LoadingContent()
                 }
                 currentFolderUri == null -> {
-                    // 根目錄：顯示已掃描的資料夾列表
                     if (scannedFolders.isEmpty()) {
                         EmptyFilesState(onAddFolderClick = onFolderPickerRequest)
                     } else {
@@ -128,14 +151,17 @@ fun FilesScreen(
                     }
                 }
                 else -> {
-                    // 顯示資料夾內的歌曲
-                    if (currentSongs.isEmpty()) {
+                    if (directoryContents.directories.isEmpty() && directoryContents.songs.isEmpty()) {
                         EmptyFolderState()
                     } else {
-                        SongListView(
-                            songs = currentSongs,
+                        DirectoryContentView(
+                            directories = directoryContents.directories,
+                            songs = directoryContents.songs,
+                            onDirectoryClick = { directory ->
+                                viewModel.navigateToDirectory(directory.name)
+                            },
                             onSongClick = { song, index ->
-                                playSong(musicPlayer, currentSongs, index)
+                                playSong(musicPlayer, directoryContents.songs, index)
                             }
                         )
                     }
@@ -145,9 +171,6 @@ fun FilesScreen(
     }
 }
 
-/**
-* 資料夾列表視圖
-*/
 @Composable
 private fun FolderListView(
     folders: List<ScannedFolder>,
@@ -174,10 +197,6 @@ private fun FolderListView(
     }
 }
 
-/**
-* 資料夾項目
-*/
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderItem(
     folder: ScannedFolder,
@@ -201,7 +220,6 @@ private fun FolderItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 資料夾圖標
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -210,7 +228,7 @@ private fun FolderItem(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Folder,
+                    imageVector = Icons.Default.FolderOpen,
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -219,7 +237,6 @@ private fun FolderItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // 資料夾信息
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = folder.name,
@@ -237,7 +254,6 @@ private fun FolderItem(
                 )
             }
 
-            // 刪除按鈕
             IconButton(onClick = { showDeleteDialog = true }) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
@@ -248,14 +264,13 @@ private fun FolderItem(
         }
     }
 
-    // 刪除確認對話框
     if (showDeleteDialog) {
-        AlertDialog(
+        androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Remove Folder") },
             text = { Text("Remove \"${folder.name}\" from your library? The files will not be deleted.") },
             confirmButton = {
-                TextButton(
+                androidx.compose.material3.TextButton(
                     onClick = {
                         onDelete()
                         showDeleteDialog = false
@@ -265,7 +280,7 @@ private fun FolderItem(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                androidx.compose.material3.TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -273,12 +288,11 @@ private fun FolderItem(
     }
 }
 
-/**
-* 歌曲列表視圖
-*/
 @Composable
-private fun SongListView(
+private fun DirectoryContentView(
+    directories: List<DirectoryItem>,
     songs: List<MusicMetadata>,
+    onDirectoryClick: (DirectoryItem) -> Unit,
     onSongClick: (MusicMetadata, Int) -> Unit
 ) {
     LazyColumn(
@@ -291,6 +305,39 @@ private fun SongListView(
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (directories.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Folders",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            items(directories, key = { it.name }) { directory ->
+                DirectoryItemRow(
+                    directory = directory,
+                    onClick = { onDirectoryClick(directory) }
+                )
+            }
+
+            item {
+                Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+
+        if (songs.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Songs",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+
         items(songs.indices.toList()) { index ->
             val song = songs[index]
             SongItem(
@@ -302,9 +349,50 @@ private fun SongListView(
     }
 }
 
-/**
-* 歌曲項目
-*/
+@Composable
+private fun DirectoryItemRow(
+    directory: DirectoryItem,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.FolderOpen,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = directory.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${directory.songCount} songs",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 private fun SongItem(
     song: MusicMetadata,
@@ -318,7 +406,6 @@ private fun SongItem(
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 序號
         Text(
             text = "$index",
             style = MaterialTheme.typography.labelMedium,
@@ -326,7 +413,6 @@ private fun SongItem(
             modifier = Modifier.width(32.dp)
         )
 
-        // 專輯封面
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -334,26 +420,36 @@ private fun SongItem(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
-            if (song.albumArt != null) {
-                AsyncImage(
-                    model = song.albumArt,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            when {
+                song.albumArt != null -> {
+                    AsyncImage(
+                        model = song.albumArt,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                song.albumArtPath != null -> {
+                    AsyncImage(
+                        model = Uri.parse(song.albumArtPath),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                else -> {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // 歌曲信息
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
@@ -375,9 +471,6 @@ private fun SongItem(
     }
 }
 
-/**
-* 空狀態 - 沒有掃描任何資料夾
-*/
 @Composable
 private fun EmptyFilesState(
     onAddFolderClick: () -> Unit
@@ -428,9 +521,6 @@ private fun EmptyFilesState(
     }
 }
 
-/**
-* 空資料夾狀態
-*/
 @Composable
 private fun EmptyFolderState() {
     Box(
@@ -462,9 +552,6 @@ private fun EmptyFolderState() {
     }
 }
 
-/**
-* 載入中狀態
-*/
 @Composable
 private fun LoadingContent() {
     Box(
@@ -474,7 +561,7 @@ private fun LoadingContent() {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CircularProgressIndicator(
+            androidx.compose.material3.CircularProgressIndicator(
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -487,26 +574,17 @@ private fun LoadingContent() {
     }
 }
 
-/**
-* 播放歌曲
-*/
 private fun playSong(musicPlayer: MusicPlayer, songs: List<MusicMetadata>, startIndex: Int) {
     Log.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
     musicPlayer.setSongs(songs)
     musicPlayer.play(startIndex)
 }
 
-/**
-* 格式化時間戳
-*/
 private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
-/**
-* 格式化時長
-*/
 private fun formatDurationForFiles(durationMs: Long): String {
     val seconds = (durationMs / 1000).toInt()
     val minutes = seconds / 60

@@ -8,15 +8,42 @@ package org.bibichan.union.player.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,28 +58,25 @@ fun FloatingPlayer(
     onExpand: () -> Unit,
     onCollapse: () -> Unit
 ) {
-    val currentSong by remember { mutableStateOf(musicPlayer.getCurrentSong()) }
-    val isPlaying by remember { mutableStateOf(musicPlayer.isPlaying()) }
+    val currentSong by musicPlayer.currentSongFlow.collectAsState()
+    val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
 
-    // 动画状态
     val animatedProgress by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "player_expand"
     )
 
-    // 浮动播放器容器
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
             .graphicsLayer {
-                alpha = animatedProgress
-                scaleX = 0.8f + (0.2f * animatedProgress)
-                scaleY = 0.8f + (0.2f * animatedProgress)
+                alpha = 1f
+                scaleX = 0.95f + (0.05f * animatedProgress)
+                scaleY = 0.95f + (0.05f * animatedProgress)
             }
     ) {
-        // 浮动播放器卡片
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -64,18 +88,16 @@ fun FloatingPlayer(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 8.dp
+                defaultElevation = 10.dp
             )
         ) {
             if (isVisible) {
-                // 展开状态的完整播放器界面
                 ExpandedPlayer(
                     musicPlayer = musicPlayer,
                     currentSong = currentSong,
                     isPlaying = isPlaying
                 )
             } else {
-                // 收起状态的迷你播放器
                 MiniPlayer(
                     currentSong = currentSong,
                     isPlaying = isPlaying,
@@ -95,10 +117,9 @@ fun MiniPlayer(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 专辑封面占位符
         Surface(
             modifier = Modifier.size(48.dp),
             shape = MaterialTheme.shapes.medium,
@@ -112,9 +133,8 @@ fun MiniPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
 
-        // 歌曲信息
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -134,40 +154,29 @@ fun MiniPlayer(
                 )
             } ?: run {
                 Text(
-                    text = "No song playing",
+                    text = "No song selected",
                     style = MaterialTheme.typography.titleMedium
                 )
+                Text(
+                    text = "Tap a song to play",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        // 播放控制按钮
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            IconButton(
-                onClick = {
-                    if (musicPlayer.isPlaying()) {
-                        musicPlayer.pause()
-                    } else {
-                        musicPlayer.resume()
-                    }
+        AppleControlRow(
+            isPlaying = isPlaying,
+            onPrevious = { musicPlayer.previous() },
+            onPlayPause = {
+                if (musicPlayer.isPlaying()) {
+                    musicPlayer.pause()
+                } else {
+                    musicPlayer.resume()
                 }
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play"
-                )
-            }
-
-            IconButton(
-                onClick = { musicPlayer.next() }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next"
-                )
-            }
-        }
+            },
+            onNext = { musicPlayer.next() }
+        )
     }
 }
 
@@ -183,7 +192,6 @@ fun ExpandedPlayer(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 专辑封面
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
@@ -200,9 +208,8 @@ fun ExpandedPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.size(32.dp))
 
-        // 歌曲信息
         currentSong?.let { song ->
             Text(
                 text = song.title,
@@ -210,7 +217,7 @@ fun ExpandedPlayer(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.size(8.dp))
 
             Text(
                 text = song.artist,
@@ -219,70 +226,100 @@ fun ExpandedPlayer(
             )
         } ?: run {
             Text(
-                text = "No song playing",
+                text = "No song selected",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.size(32.dp))
 
-        // 播放控制按钮
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+        AppleControlRow(
+            isPlaying = isPlaying,
+            onPrevious = { musicPlayer.previous() },
+            onPlayPause = {
+                if (musicPlayer.isPlaying()) {
+                    musicPlayer.pause()
+                } else {
+                    musicPlayer.resume()
+                }
+            },
+            onNext = { musicPlayer.next() },
+            large = true
+        )
+    }
+}
+
+@Composable
+private fun AppleControlRow(
+    isPlaying: Boolean,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    large: Boolean = false
+) {
+    val buttonSize = if (large) 72.dp else 48.dp
+    val iconSize = if (large) 32.dp else 22.dp
+    val playButtonSize = if (large) 86.dp else 56.dp
+    val playIconSize = if (large) 38.dp else 26.dp
+
+    val controlBackground = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
+        )
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = onPrevious,
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            // 上一首
-            FilledIconButton(
-                onClick = { musicPlayer.previous() },
-                modifier = Modifier.size(56.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Previous",
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.SkipPrevious,
+                contentDescription = "Previous",
+                modifier = Modifier.size(iconSize),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
-            // 播放/暂停
-            FilledIconButton(
-                onClick = {
-                    if (musicPlayer.isPlaying()) {
-                        musicPlayer.pause()
-                    } else {
-                        musicPlayer.resume()
-                    }
-                },
-                modifier = Modifier.size(72.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = if (musicPlayer.isPlaying()) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (musicPlayer.isPlaying()) "Pause" else "Play",
-                    modifier = Modifier.size(40.dp)
-                )
-            }
+        FilledIconButton(
+            onClick = onPlayPause,
+            modifier = Modifier
+                .size(playButtonSize)
+                .clip(CircleShape)
+                .background(controlBackground),
+            colors = IconButtonDefaults.filledIconButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                modifier = Modifier.size(playIconSize)
+            )
+        }
 
-            // 下一首
-            FilledIconButton(
-                onClick = { musicPlayer.next() },
-                modifier = Modifier.size(56.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next",
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+        IconButton(
+            onClick = onNext,
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SkipNext,
+                contentDescription = "Next",
+                modifier = Modifier.size(iconSize),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
