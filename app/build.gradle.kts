@@ -49,7 +49,7 @@ android {
             val keyAlias = System.getenv("KEY_ALIAS")
             val keyPassword = System.getenv("KEY_PASSWORD")
 
-            if (keystorePath != null && keystorePassword != null && 
+            if (keystorePath != null && keystorePassword != null &&
                 keyAlias != null && keyPassword != null) {
                 // 使用 CI 环境中的签名配置（PKCS12 格式）
                 signingConfig = signingConfigs.create("release") {
@@ -65,8 +65,13 @@ android {
                 signingConfig = signingConfigs.getByName("debug")
             }
 
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // 启用 R8 以减少 dex 体积和安装时间
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
         // debug 保持默认（debug keystore）
     }
@@ -76,7 +81,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_25
     }
 
-    
     buildFeatures {
         compose = true
     }

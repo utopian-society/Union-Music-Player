@@ -7,6 +7,9 @@
 package org.bibichan.union.player.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,7 +98,7 @@ fun ScanningProgressDialog(
 
                     is MusicScanner.ScanState.Completed -> {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.CheckCircle,
+                            imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Complete",
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -117,7 +120,7 @@ fun ScanningProgressDialog(
 
                     is MusicScanner.ScanState.Error -> {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.Error,
+                            imageVector = Icons.Default.Error,
                             contentDescription = "Error",
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
