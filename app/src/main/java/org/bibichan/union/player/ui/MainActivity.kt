@@ -3,8 +3,9 @@
  *
  * 这是Union Music Player的主界面入口点，使用Jetpack Compose构建UI。
  * Material 3设计系统，Apple Music风格的三按钮导航。
- * 
+ *
  * 2026-03-22: 添加資料夾選擇器支援
+ * 2026-03-23: 添加掃描進度對話框支援
  */
 package org.bibichan.union.player.ui
 
@@ -35,6 +36,8 @@ import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicScanner
 import org.bibichan.union.player.data.ScannedFilesManager
 import org.bibichan.union.player.ui.theme.UnionMusicPlayerTheme
+import org.bibichan.union.player.ui.components.ScanningProgressDialog
+import org.bibichan.union.player.ui.components.ScanningDialogState
 
 private const val TAG = "MainActivity"
 
@@ -130,6 +133,12 @@ class MainActivity : ComponentActivity() {
         // 设置Compose内容
         setContent {
             UnionMusicPlayerTheme {
+                // 掃描進度對話框狀態
+                var scanningDialogState by remember { mutableStateOf(ScanningDialogState()) }
+                
+                // 觀察掃描狀態
+                val scanState by musicScanner.scanState.collectAsState()
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -140,6 +149,39 @@ class MainActivity : ComponentActivity() {
                         onPermissionResult = { onPermissionGranted() },
                         onFolderPickerRequest = { openFolderPicker() }
                     )
+                }
+
+                // 掃描進度對話框
+                if (scanningDialogState.isVisible) {
+                    ScanningProgressDialog(
+                        scanState = scanState,
+                        onDismiss = {
+                            scanningDialogState = scanningDialogState.copy(isVisible = false)
+                        },
+                        onCancel = {
+                            musicScanner.stopScan()
+                            scanningDialogState = scanningDialogState.copy(isVisible = false)
+                            Toast.makeText(this, "Scan cancelled", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+
+                // 當掃描狀態變化時更新對話框可見性
+                LaunchedEffect(scanState) {
+                    when (scanState) {
+                        is MusicScanner.ScanState.Scanning -> {
+                            scanningDialogState = scanningDialogState.copy(
+                                isVisible = true,
+                                scanState = scanState
+                            )
+                        }
+                        is MusicScanner.ScanState.Completed,
+                        is MusicScanner.ScanState.Error -> {
+                            // 對話框會在 ScanningProgressDialog 內部自動關閉
+                            scanningDialogState = scanningDialogState.copy(scanState = scanState)
+                        }
+                        else -> {}
+                    }
                 }
             }
         }
@@ -158,7 +200,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun scanSelectedFolder(folderUri: Uri) {
         Log.i(TAG, "Starting scan for folder: $folderUri")
-        Toast.makeText(this, "Scanning folder...", Toast.LENGTH_SHORT).show()
 
         scope.launch {
             try {
@@ -169,7 +210,7 @@ class MainActivity : ComponentActivity() {
 
                 Log.i(TAG, "Folder name: $folderName")
 
-                // 使用 MusicScanner 掃描資料夾
+                // 使用 MusicScanner 掃描資料夾（進度會通過 scanState Flow 更新）
                 val result = musicScanner.scanDocumentFolder(folderUri, this@MainActivity)
 
                 Log.i(TAG, "Scan completed: ${result.songs.size} songs found")

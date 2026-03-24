@@ -551,17 +551,37 @@ class MusicScanner(private val context: Context) {
                 return@withContext ScanResult()
             }
 
+            // 第一遍：快速計算總文件數（用於進度顯示）
+            Log.i(TAG, "First pass: counting audio files...")
+            _scanState.value = ScanState.Scanning(0f, "Counting files...")
+            val totalFiles = AtomicInteger(0)
+            countAudioFilesRecursive(documentFile, totalFiles)
+            val total = totalFiles.get()
+            Log.i(TAG, "Found $total audio files to process")
+
+            if (total == 0) {
+                _scanState.value = ScanState.Error("No audio files found in selected folder")
+                return@withContext ScanResult()
+            }
+
             val songs = ConcurrentHashMap<MusicMetadata, MusicMetadata>()
             val scannedFiles = AtomicInteger(0)
             val scannedDirs = AtomicInteger(0)
+            val errorCount = AtomicInteger(0)
 
             // 創建通道用於並行處理
             val fileChannel = Channel<androidx.documentfile.provider.DocumentFile>(capacity = Channel.UNLIMITED)
 
-            // 啟動多個消費者協程並行處理文件
-            val consumers = List(4) { consumerId ->
-                launch {
+            // 使用協程作用域來支持取消
+            val scanScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+            // 啟動消費者協程並行處理文件（減少到2個以降低資源消耗）
+            val consumers = List(2) { consumerId ->
+                scanScope.launch {
                     for (file in fileChannel) {
+                        // 檢查是否已取消
+                        if (!isActive) break
+
                         try {
                             val metadata = processDocumentFile(file, context)
                             if (metadata != null) {
@@ -569,21 +589,26 @@ class MusicScanner(private val context: Context) {
                                 Log.d(TAG, "Consumer $consumerId: Processed ${file.name}")
                             }
 
-                            // 更新進度
+                            // 更新進度（基於實際文件數）
                             val processed = scannedFiles.incrementAndGet()
+                            val progress = processed.toFloat() / total
                             _scanState.value = ScanState.Scanning(
-                                progress = processed.toFloat() / 100,
-                                currentFile = file.name ?: "Unknown"
+                                progress = progress.coerceIn(0f, 1f),
+                                currentFile = "$processed/$total: ${file.name ?: "Unknown"}"
                             )
+
+                            // 添加小延遲以防止過度消耗資源
+                            kotlinx.coroutines.delay(10)
                         } catch (e: Exception) {
                             Log.e(TAG, "Consumer $consumerId error processing ${file.name}", e)
+                            errorCount.incrementAndGet()
                         }
                     }
                 }
             }
 
             // 遞歸掃描 DocumentFile 目錄
-            val scanJob = launch {
+            val scanJob = scanScope.launch {
                 scanDocumentFileRecursive(documentFile, fileChannel, scannedDirs)
                 fileChannel.close()
             }
@@ -602,7 +627,7 @@ class MusicScanner(private val context: Context) {
             )
 
             _scanState.value = ScanState.Completed(result)
-            Log.i(TAG, "Document scan completed: ${result.songs.size} songs, ${scanTime}ms")
+            Log.i(TAG, "Document scan completed: ${result.songs.size} songs, ${errorCount.get()} errors, ${scanTime}ms")
 
             result
         } catch (e: Exception) {
@@ -611,6 +636,29 @@ class MusicScanner(private val context: Context) {
             ScanResult()
         } finally {
             isScanning.set(0)
+        }
+    }
+
+    /**
+     * 遞歸計算音頻文件數量（快速，不提取元數據）
+     */
+    private suspend fun countAudioFilesRecursive(
+        directory: androidx.documentfile.provider.DocumentFile,
+        counter: AtomicInteger
+    ) {
+        directory.listFiles().forEach { file ->
+            when {
+                file.isDirectory -> {
+                    countAudioFilesRecursive(file, counter)
+                }
+                file.isFile -> {
+                    val name = file.name ?: ""
+                    val extension = name.substringAfterLast('.', "").lowercase()
+                    if (AudioFormat.supportedExtensions.contains(extension)) {
+                        counter.incrementAndGet()
+                    }
+                }
+            }
         }
     }
 
@@ -641,21 +689,24 @@ class MusicScanner(private val context: Context) {
 
     /**
      * 處理單個 DocumentFile 音頻文件
+     *
+     * 優化：跳過專輯封面提取以減少內存使用，封面將在需要時按需加載
      */
     private fun processDocumentFile(
         documentFile: androidx.documentfile.provider.DocumentFile,
         context: Context
     ): MusicMetadata? {
+        val name = documentFile.name ?: return null
+        val extension = name.substringAfterLast('.', "").lowercase()
+        val format = AudioFormat.fromExtension(extension)
+
+        if (format == AudioFormat.UNKNOWN) {
+            return null
+        }
+
+        val retriever = MediaMetadataRetriever()
+        
         return try {
-            val name = documentFile.name ?: return null
-            val extension = name.substringAfterLast('.', "").lowercase()
-            val format = AudioFormat.fromExtension(extension)
-
-            if (format == AudioFormat.UNKNOWN) {
-                return null
-            }
-
-            val retriever = MediaMetadataRetriever()
             retriever.setDataSource(context, documentFile.uri)
 
             // 提取元數據
@@ -671,10 +722,9 @@ class MusicScanner(private val context: Context) {
             val trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)?.toIntOrNull()
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
 
-            // 提取專輯封面
-            val albumArt = extractAlbumArt(retriever)
-
-            retriever.release()
+            // 跳過專輯封面提取以減少內存使用和處理時間
+            // 專輯封面將在播放時按需加載
+            // val albumArt = extractAlbumArt(retriever)
 
             // 嘗試獲取真實路徑（如果可能）
             val filePath = getRealPathFromUri(documentFile.uri) ?: documentFile.uri.toString()
@@ -687,7 +737,7 @@ class MusicScanner(private val context: Context) {
                 duration = duration,
                 filePath = filePath,
                 uri = documentFile.uri,
-                albumArt = albumArt,
+                albumArt = null, // 按需加載
                 genre = genre,
                 year = year,
                 trackNumber = trackNumber,
@@ -696,6 +746,13 @@ class MusicScanner(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error processing DocumentFile: ${documentFile.name}", e)
             null
+        } finally {
+            // 確保資源被釋放，即使發生異常
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing MediaMetadataRetriever", e)
+            }
         }
     }
 }
