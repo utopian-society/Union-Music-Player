@@ -19,6 +19,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,53 +62,59 @@ class MusicPlayer(private val context: Context) {
 
     private fun initializePlayer() {
         try {
-            exoPlayer = ExoPlayer.Builder(context).build().apply {
-                val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
-                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build()
+            val renderersFactory = DefaultRenderersFactory(context)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
 
-                setAudioAttributes(audioAttributes, true)
+            exoPlayer = ExoPlayer.Builder(context)
+                .setRenderersFactory(renderersFactory)
+                .build()
+                .apply {
+                    val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                        .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build()
 
-                setHandleAudioBecomingNoisy(true)
+                    setAudioAttributes(audioAttributes, true)
 
-                addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        _playbackStateFlow.value = playbackState
-                        when (playbackState) {
-                            Player.STATE_READY -> {
-                                Log.d(TAG, "Player ready")
-                                playbackListener?.onReady()
-                            }
-                            Player.STATE_ENDED -> {
-                                Log.d(TAG, "Song ended")
-                                playbackListener?.onSongEnded()
-                                next()
-                            }
-                            Player.STATE_BUFFERING -> {
-                                Log.d(TAG, "Buffering...")
-                            }
-                            Player.STATE_IDLE -> {
-                                Log.d(TAG, "Player idle")
+                    setHandleAudioBecomingNoisy(true)
+
+                    addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            _playbackStateFlow.value = playbackState
+                            when (playbackState) {
+                                Player.STATE_READY -> {
+                                    Log.d(TAG, "Player ready")
+                                    playbackListener?.onReady()
+                                }
+                                Player.STATE_ENDED -> {
+                                    Log.d(TAG, "Song ended")
+                                    playbackListener?.onSongEnded()
+                                    next()
+                                }
+                                Player.STATE_BUFFERING -> {
+                                    Log.d(TAG, "Buffering...")
+                                }
+                                Player.STATE_IDLE -> {
+                                    Log.d(TAG, "Player idle")
+                                }
                             }
                         }
-                    }
 
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        isPlayingState = isPlaying
-                        _isPlayingFlow.value = isPlaying
-                        playbackListener?.onPlayingChanged(isPlaying)
-                        Log.d(TAG, "Is playing: $isPlaying")
-                    }
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            isPlayingState = isPlaying
+                            _isPlayingFlow.value = isPlaying
+                            playbackListener?.onPlayingChanged(isPlaying)
+                            Log.d(TAG, "Is playing: $isPlaying")
+                        }
 
-                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                        val message = "Playback error: ${error.errorCodeName}"
-                        Log.e(TAG, message, error)
-                        _lastErrorFlow.value = message
-                        playbackListener?.onError(message)
-                    }
-                })
-            }
+                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                            val message = "Playback error: ${error.errorCodeName}"
+                            Log.e(TAG, message, error)
+                            _lastErrorFlow.value = message
+                            playbackListener?.onError(message)
+                        }
+                    })
+                }
             Log.d(TAG, "ExoPlayer initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing ExoPlayer", e)

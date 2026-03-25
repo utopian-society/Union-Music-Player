@@ -1,14 +1,14 @@
 /**
-* build.gradle.kts - 模块级构建配置文件
-*
-* 添加了音频元数据提取、ExoPlayer和协程依赖
-* 已添加 release 签名配置，支持 GitHub Actions CI 自动签名
-*
-* 2026 现代化更新：更新所有主要依赖到最新版本
-* 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
-* 使用 PKCS12 格式的 keystore（Java 25+ 默认格式）
-* Gradle 9.4.1 + AGP 9.10 + Kotlin 2.1.20 + Java 25
-*/
+ * build.gradle.kts - 模块级构建配置文件
+ *
+ * 添加了音频元数据提取、ExoPlayer和协程依赖
+ * 已添加 release 签名配置，支持 GitHub Actions CI 自动签名
+ *
+ * 2026 现代化更新：更新所有主要依赖到最新版本
+ * 使用 Media3 ExoPlayer 提取音频元数据（替代 jaudiotagger）
+ * 使用 PKCS12 格式的 keystore（Java 25+ 默认格式）
+ * Gradle 9.4.1 + AGP 9.10 + Kotlin 2.1.20 + Java 25
+ */
 
 plugins {
     id("com.android.application")
@@ -119,6 +119,7 @@ dependencies {
     // Media3 ExoPlayer - 支持 FLAC 和 ALAC 的强大媒体播放器 (2026 更新)
     // 同时用于音频元数据提取（替代 jaudiotagger）
     implementation("androidx.media3:media3-exoplayer:1.9.2")
+    implementation("androidx.media3:media3-exoplayer-ffmpeg:1.9.2")
     implementation("androidx.media3:media3-ui:1.9.2")
     implementation("androidx.media3:media3-common:1.9.2")
     implementation("androidx.media3:media3-datasource:1.9.2")
