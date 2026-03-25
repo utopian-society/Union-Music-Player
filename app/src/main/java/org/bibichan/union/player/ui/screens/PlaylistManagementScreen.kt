@@ -71,9 +71,9 @@ fun PlaylistManagementScreen(
                 },
                 actions = {
                     // 导入按钮
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         LogManager.i(TAG, "Import button clicked")
-                        showImportDialog = true 
+                        showImportDialog = true
                     }) {
                         Icon(Icons.Default.Add, contentDescription = "Import Playlist")
                     }
@@ -92,9 +92,9 @@ fun PlaylistManagementScreen(
             if (playlists.isEmpty()) {
                 // 空状态 - 提示用户导入播放列表
                 EmptyPlaylistContent(
-                    onImportClick = { 
+                    onImportClick = {
                         LogManager.i(TAG, "Empty state import button clicked")
-                        showImportDialog = true 
+                        showImportDialog = true
                     }
                 )
             } else {
@@ -111,9 +111,9 @@ fun PlaylistManagementScreen(
     // 导入对话框
     if (showImportDialog) {
         PlaylistImportDialog(
-            onDismiss = { 
+            onDismiss = {
                 LogManager.d(TAG, "Import dialog dismissed")
-                showImportDialog = false 
+                showImportDialog = false
             },
             onFileSelected = { uri ->
                 LogManager.i(TAG, "=== FILE SELECTED FROM DIALOG ===")
@@ -377,7 +377,7 @@ fun PlaylistImportDialog(
 
     // 文件选择启动器
     val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
     ) { uri ->
         LogManager.i(TAG, "=== FILE PICKER RETURNED ===")
         if (uri != null) {
@@ -386,7 +386,16 @@ fun PlaylistImportDialog(
             LogManager.i(TAG, "URI authority: ${uri.authority}")
             LogManager.i(TAG, "URI path: ${uri.path}")
             LogManager.i(TAG, "URI encoded path: ${uri.encodedPath}")
-            
+
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                LogManager.w(TAG, "Persistable permission failed: ${e.message}")
+            }
+
             onFileSelected(uri)
         } else {
             LogManager.w(TAG, "File picker returned null URI - user likely cancelled")
@@ -430,11 +439,10 @@ fun PlaylistImportDialog(
             FilledTonalButton(
                 onClick = {
                     LogManager.i(TAG, "=== BROWSE FILES BUTTON CLICKED ===")
-                    LogManager.i(TAG, "Launching file picker with MIME type: */*")
-                    
-                    // Try different MIME types
+                    LogManager.i(TAG, "Launching file picker with MIME type: audio/x-mpegurl")
+
                     try {
-                        filePickerLauncher.launch("*/*")
+                        filePickerLauncher.launch(arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/x-mpegurl", "*/*"))
                         LogManager.d(TAG, "File picker launched successfully")
                     } catch (e: Exception) {
                         LogManager.e(TAG, "Failed to launch file picker: ${e.message}", e)

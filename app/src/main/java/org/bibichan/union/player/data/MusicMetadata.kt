@@ -22,6 +22,7 @@ import org.json.JSONObject
  * @property uri 文件URI
  * @property albumArt 专辑封面图片
  * @property albumArtPath 专辑封面路径（如果有）
+ * @property relativePath 相对路径（用于 SAF 扫描的目录结构）
  * @property genre 音乐类型
  * @property year 发行年份
  * @property trackNumber 曲目编号
@@ -37,6 +38,7 @@ data class MusicMetadata(
     val uri: Uri = Uri.EMPTY,
     val albumArt: Bitmap? = null,
     val albumArtPath: String? = null,
+    val relativePath: String? = null,
     val genre: String? = null,
     val year: Int? = null,
     val trackNumber: Int? = null,
@@ -56,6 +58,7 @@ data class MusicMetadata(
             put("filePath", filePath)
             put("uri", uri.toString())
             put("albumArtPath", albumArtPath)
+            put("relativePath", relativePath)
             put("genre", genre)
             put("year", year)
             put("trackNumber", trackNumber)
@@ -77,6 +80,7 @@ data class MusicMetadata(
                 filePath = json.optString("filePath", ""),
                 uri = Uri.parse(json.optString("uri", "")),
                 albumArtPath = json.optString("albumArtPath").takeIf { it.isNotEmpty() },
+                relativePath = json.optString("relativePath").takeIf { it.isNotEmpty() },
                 genre = json.optString("genre").takeIf { it.isNotEmpty() },
                 year = json.optInt("year", 0).takeIf { it != 0 },
                 trackNumber = json.optInt("trackNumber", 0).takeIf { it != 0 },

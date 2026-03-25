@@ -77,7 +77,7 @@ fun LibraryScreen(
         } else {
             albums.filter { album ->
                 album.title.contains(searchQuery, ignoreCase = true) ||
-                album.artistName.contains(searchQuery, ignoreCase = true)
+                    album.artistName.contains(searchQuery, ignoreCase = true)
             }
         }
     }}
@@ -361,22 +361,6 @@ private fun FeaturedPlaylistCard(
     album: Album,
     onClick: () -> Unit
 ) {
-    // Get theme colors first (outside remember)
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-    val primaryContainerColor = MaterialTheme.colorScheme.primaryContainer
-
-    // Cache gradient brush to avoid recreation
-    val gradientBrush = remember(primaryColor, secondaryColor, primaryContainerColor) {
-        Brush.linearGradient(
-            colors = listOf(
-                primaryColor.copy(alpha = 0.7f),
-                secondaryColor.copy(alpha = 0.5f),
-                primaryContainerColor.copy(alpha = 0.8f)
-            )
-        )
-    }
-
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -384,28 +368,47 @@ private fun FeaturedPlaylistCard(
             .height(200.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Background with cached gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(brush = gradientBrush)
-            )
-
             // Album artwork
             if (album.artworkUri != null) {
                 AsyncImage(
                     model = album.artworkUri,
                     contentDescription = album.title,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.3f
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            )
+                        )
                 )
             }
+
+            // Text scrim for readability (keeps artwork at 100%)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            )
 
             // Content overlay
             Column(

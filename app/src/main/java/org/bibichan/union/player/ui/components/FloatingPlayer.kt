@@ -1,13 +1,10 @@
 /**
  * FloatingPlayer.kt - 浮动播放器组件
  *
- * 实现Apple Music风格的浮动播放器，具有展开/收起动画效果
+ * 提供底部迷你播放器与全屏播放页的可复用内容
  */
-
 package org.bibichan.union.player.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +13,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -29,87 +29,67 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.Player
+import kotlinx.coroutines.delay
 import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicMetadata
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FloatingPlayer(
     musicPlayer: MusicPlayer,
-    isVisible: Boolean,
     onExpand: () -> Unit,
-    onCollapse: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
 
-    val animatedProgress by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = 300),
-        label = "player_expand"
-    )
-
-    Box(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .graphicsLayer {
-                alpha = 1f
-                scaleX = 0.95f + (0.05f * animatedProgress)
-                scaleY = 0.95f + (0.05f * animatedProgress)
-            }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable { onExpand() },
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 6.dp
+        )
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    if (isVisible) onCollapse() else onExpand()
-                },
-            shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 10.dp
-            )
-        ) {
-            if (isVisible) {
-                ExpandedPlayer(
-                    musicPlayer = musicPlayer,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying
-                )
-            } else {
-                MiniPlayer(
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    musicPlayer = musicPlayer
-                )
-            }
-        }
+        MiniPlayerContent(
+            currentSong = currentSong,
+            isPlaying = isPlaying,
+            musicPlayer = musicPlayer
+        )
     }
 }
 
 @Composable
-fun MiniPlayer(
+private fun MiniPlayerContent(
     currentSong: MusicMetadata?,
     isPlaying: Boolean,
     musicPlayer: MusicPlayer
@@ -117,47 +97,47 @@ fun MiniPlayer(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(40.dp),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
             Icon(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = "Album Cover",
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(8.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
 
-        Spacer(modifier = Modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(10.dp))
 
         Column(
             modifier = Modifier.weight(1f)
         ) {
             currentSong?.let { song ->
-                androidx.compose.material3.Text(
+                Text(
                     text = song.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                androidx.compose.material3.Text(
+                Text(
                     text = song.artist,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             } ?: run {
-                androidx.compose.material3.Text(
+                Text(
                     text = "No song selected",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleSmall
                 )
-                androidx.compose.material3.Text(
+                Text(
                     text = "Tap a song to play",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -181,20 +161,75 @@ fun MiniPlayer(
 }
 
 @Composable
-fun ExpandedPlayer(
+fun FullPlayerSheetContent(
     musicPlayer: MusicPlayer,
-    currentSong: MusicMetadata?,
-    isPlaying: Boolean
+    onCollapse: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val currentSong by musicPlayer.currentSongFlow.collectAsState()
+    val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
+    val playbackState by musicPlayer.playbackStateFlow.collectAsState()
+    val lastError by musicPlayer.lastErrorFlow.collectAsState()
+
+    var positionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var sliderPosition by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(musicPlayer) {
+        while (true) {
+            val currentPosition = musicPlayer.getCurrentPosition()
+            val duration = musicPlayer.getDuration().coerceAtLeast(0L)
+            positionMs = currentPosition
+            durationMs = duration
+            if (!isSeeking) {
+                sliderPosition = if (duration > 0) {
+                    (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+            }
+            delay(500)
+        }
+    }
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
+            .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 42.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
+            }
+
+            IconButton(onClick = onCollapse) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Collapse"
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.7f)
+                .fillMaxWidth(0.8f)
                 .aspectRatio(1f),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.primaryContainer,
@@ -208,31 +243,100 @@ fun ExpandedPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.size(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         currentSong?.let { song ->
-            androidx.compose.material3.Text(
+            Text(
                 text = song.title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.size(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            androidx.compose.material3.Text(
+            Text(
                 text = song.artist,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         } ?: run {
-            androidx.compose.material3.Text(
+            Text(
                 text = "No song selected",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Spacer(modifier = Modifier.size(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        when {
+            lastError != null -> {
+                Text(
+                    text = lastError ?: "Playback error",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            playbackState == Player.STATE_BUFFERING -> {
+                Text(
+                    text = "Buffering...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            playbackState == Player.STATE_READY -> {
+                Text(
+                    text = "Ready",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            else -> {
+                Text(
+                    text = "Idle",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Slider(
+            value = sliderPosition,
+            onValueChange = { value ->
+                sliderPosition = value
+                isSeeking = true
+            },
+            onValueChangeFinished = {
+                val target = (sliderPosition * durationMs).toLong()
+                musicPlayer.seekTo(target)
+                isSeeking = false
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = formatTime(positionMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = formatTime(durationMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         AppleControlRow(
             isPlaying = isPlaying,
@@ -258,10 +362,10 @@ private fun AppleControlRow(
     onNext: () -> Unit,
     large: Boolean = false
 ) {
-    val buttonSize = if (large) 72.dp else 48.dp
-    val iconSize = if (large) 32.dp else 22.dp
-    val playButtonSize = if (large) 86.dp else 56.dp
-    val playIconSize = if (large) 38.dp else 26.dp
+    val buttonSize = if (large) 72.dp else 44.dp
+    val iconSize = if (large) 32.dp else 20.dp
+    val playButtonSize = if (large) 86.dp else 52.dp
+    val playIconSize = if (large) 38.dp else 24.dp
 
     val controlBackground = Brush.linearGradient(
         colors = listOf(
@@ -322,4 +426,11 @@ private fun AppleControlRow(
             )
         }
     }
+}
+
+private fun formatTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1000).toInt().coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%d:%02d", minutes, seconds)
 }

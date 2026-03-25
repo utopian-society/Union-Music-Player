@@ -49,6 +49,12 @@ class MusicPlayer(private val context: Context) {
     private val _isPlayingFlow = MutableStateFlow(false)
     val isPlayingFlow: StateFlow<Boolean> = _isPlayingFlow.asStateFlow()
 
+    private val _lastErrorFlow = MutableStateFlow<String?>(null)
+    val lastErrorFlow: StateFlow<String?> = _lastErrorFlow.asStateFlow()
+
+    private val _playbackStateFlow = MutableStateFlow(Player.STATE_IDLE)
+    val playbackStateFlow: StateFlow<Int> = _playbackStateFlow.asStateFlow()
+
     init {
         initializePlayer()
     }
@@ -67,6 +73,7 @@ class MusicPlayer(private val context: Context) {
 
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
+                        _playbackStateFlow.value = playbackState
                         when (playbackState) {
                             Player.STATE_READY -> {
                                 Log.d(TAG, "Player ready")
@@ -92,11 +99,19 @@ class MusicPlayer(private val context: Context) {
                         playbackListener?.onPlayingChanged(isPlaying)
                         Log.d(TAG, "Is playing: $isPlaying")
                     }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        val message = "Playback error: ${error.errorCodeName}"
+                        Log.e(TAG, message, error)
+                        _lastErrorFlow.value = message
+                        playbackListener?.onError(message)
+                    }
                 })
             }
             Log.d(TAG, "ExoPlayer initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing ExoPlayer", e)
+            _lastErrorFlow.value = "Player init error: ${e.message}"
         }
     }
 
@@ -132,6 +147,7 @@ class MusicPlayer(private val context: Context) {
             Log.d(TAG, "Format: ${song.format}, Path: ${song.filePath}")
 
             _currentSongFlow.value = song
+            _lastErrorFlow.value = null
 
             val mediaItem = createMediaItem(song)
 
@@ -147,7 +163,9 @@ class MusicPlayer(private val context: Context) {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error playing song", e)
-            playbackListener?.onError("Error playing song: ${e.message}")
+            val message = "Error playing song: ${e.message}"
+            _lastErrorFlow.value = message
+            playbackListener?.onError(message)
         }
     }
 
@@ -301,6 +319,8 @@ class MusicPlayer(private val context: Context) {
             playbackListener = null
             _currentSongFlow.value = null
             _isPlayingFlow.value = false
+            _lastErrorFlow.value = null
+            _playbackStateFlow.value = Player.STATE_IDLE
             Log.d(TAG, "ExoPlayer released")
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing ExoPlayer", e)

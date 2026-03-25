@@ -78,6 +78,7 @@ private const val TAG = "FilesScreen"
 fun FilesScreen(
     musicPlayer: MusicPlayer,
     onFolderPickerRequest: () -> Unit = {},
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: FilesViewModel = viewModel()
@@ -162,6 +163,7 @@ fun FilesScreen(
                             },
                             onSongClick = { song, index ->
                                 playSong(musicPlayer, directoryContents.songs, index)
+                                onOpenPlayer()
                             }
                         )
                     }

@@ -175,6 +175,14 @@ class FilesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun resolvePathSegments(song: MusicMetadata, rootName: String): List<String> {
+        val relativePath = song.relativePath?.takeIf { it.isNotBlank() }
+        if (relativePath != null) {
+            val normalized = relativePath.replace("\\", "/").trim('/')
+            if (normalized.isNotBlank()) {
+                return normalized.split("/").filter { it.isNotBlank() }
+            }
+        }
+
         val rawPath = when {
             song.filePath.isNotBlank() -> song.filePath
             song.uri != Uri.EMPTY -> song.uri.path ?: song.uri.toString()

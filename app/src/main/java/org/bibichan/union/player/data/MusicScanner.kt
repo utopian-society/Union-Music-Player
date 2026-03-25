@@ -14,7 +14,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -277,22 +279,32 @@ class MusicScanner(private val context: Context) {
             Log.i(TAG, "Parsing playlist: ${playlistFile.absolutePath}")
             Log.i(TAG, "Playlist directory: ${playlistDir?.absolutePath}")
 
-            playlistFile.readLines().forEach { line ->
-                val trimmedLine = line.trim()
+            val relativeIndex = PlaylistPathUtils.buildRelativePathIndex(musicLibrary)
 
-                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#")) {
+            playlistFile.readLines().forEach { line ->
+                val normalizedEntry = PlaylistPathUtils.normalizePlaylistEntry(line) ?: return@forEach
+
+                Log.d(TAG, "Processing playlist entry: $normalizedEntry")
+
+                val song = PlaylistPathUtils.resolveSongFromRelativeIndex(
+                    entry = normalizedEntry,
+                    playlistDirPath = playlistDir?.absolutePath,
+                    playlistDirPathWithoutRoot = null,
+                    relativeIndex = relativeIndex
+                )
+
+                if (song != null) {
+                    songs.add(song)
                     return@forEach
                 }
 
-                Log.d(TAG, "Processing playlist entry: $trimmedLine")
-
-                val songFile = resolvePlaylistEntry(trimmedLine, playlistDir)
+                val songFile = resolvePlaylistEntry(normalizedEntry, playlistDir)
                 if (songFile != null && songFile.exists()) {
                     Log.d(TAG, "Resolved to: ${songFile.absolutePath}")
 
-                    val song = musicLibrary.find { it.filePath == songFile.absolutePath }
-                    if (song != null) {
-                        songs.add(song)
+                    val librarySong = musicLibrary.find { it.filePath == songFile.absolutePath }
+                    if (librarySong != null) {
+                        songs.add(librarySong)
                     } else {
                         val metadata = processAudioFile(songFile)
                         if (metadata != null) {
@@ -300,7 +312,7 @@ class MusicScanner(private val context: Context) {
                         }
                     }
                 } else {
-                    Log.w(TAG, "Could not resolve path: $trimmedLine")
+                    Log.w(TAG, "Could not resolve path: $normalizedEntry")
                 }
             }
 
@@ -322,16 +334,15 @@ class MusicScanner(private val context: Context) {
      * 解析播放列表条目路径
      */
     private fun resolvePlaylistEntry(entry: String, playlistDir: File?): File? {
-        val cleanEntry = entry.removePrefix("file://")
-
-        val file = File(cleanEntry)
+        val normalized = PlaylistPathUtils.normalizePlaylistEntry(entry) ?: return null
+        val file = File(normalized)
 
         return when {
             file.isAbsolute -> {
                 if (file.exists()) file else null
             }
             playlistDir != null -> {
-                val relativeFile = File(playlistDir, cleanEntry)
+                val relativeFile = File(playlistDir, normalized)
                 Log.d(TAG, "Trying relative path: ${relativeFile.absolutePath}")
                 if (relativeFile.exists()) relativeFile else null
             }
@@ -386,29 +397,50 @@ class MusicScanner(private val context: Context) {
             inputStream.close()
 
             val songs = mutableListOf<MusicMetadata>()
+            val relativeIndex = PlaylistPathUtils.buildRelativePathIndex(musicLibrary)
 
             val playlistPath = getRealPathFromUri(uri)
             val playlistDir = playlistPath?.let { File(it).parentFile }
+
+            val playlistDocId = try {
+                DocumentsContract.getDocumentId(uri)
+            } catch (e: Exception) {
+                null
+            }
+            val playlistDocPath = playlistDocId?.let { normalizeDocId(it).substringAfter(":", "") }
+            val playlistDirPath = playlistDocPath?.substringBeforeLast("/", "")?.takeIf { it.isNotBlank() }
+            val playlistDirPathWithoutRoot = playlistDirPath
+                ?.substringAfter("/", "")
+                ?.takeIf { it.isNotBlank() }
 
             LogManager.i(TAG, "Playlist path: $playlistPath")
             LogManager.i(TAG, "Playlist directory: ${playlistDir?.absolutePath ?: "unknown"}")
 
             lines.forEach { line ->
-                val trimmedLine = line.trim()
+                val normalizedEntry = PlaylistPathUtils.normalizePlaylistEntry(line) ?: return@forEach
 
-                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#")) {
+                LogManager.d(TAG, "Processing entry: $normalizedEntry")
+
+                val song = PlaylistPathUtils.resolveSongFromRelativeIndex(
+                    entry = normalizedEntry,
+                    playlistDirPath = playlistDirPath,
+                    playlistDirPathWithoutRoot = playlistDirPathWithoutRoot,
+                    relativeIndex = relativeIndex
+                )
+
+                if (song != null) {
+                    songs.add(song)
+                    LogManager.d(TAG, "Resolved via relative path index")
                     return@forEach
                 }
 
-                LogManager.d(TAG, "Processing entry: $trimmedLine")
-
-                val songFile = resolvePlaylistEntry(trimmedLine, playlistDir)
+                val songFile = resolvePlaylistEntry(normalizedEntry, playlistDir)
                 if (songFile != null && songFile.exists()) {
                     LogManager.d(TAG, "Resolved to: ${songFile.absolutePath}")
 
-                    val song = musicLibrary.find { it.filePath == songFile.absolutePath }
-                    if (song != null) {
-                        songs.add(song)
+                    val librarySong = musicLibrary.find { it.filePath == songFile.absolutePath }
+                    if (librarySong != null) {
+                        songs.add(librarySong)
                         LogManager.d(TAG, "Found song in music library")
                     } else {
                         val metadata = processAudioFile(songFile)
@@ -420,7 +452,7 @@ class MusicScanner(private val context: Context) {
                         }
                     }
                 } else {
-                    LogManager.w(TAG, "Could not resolve path: $trimmedLine")
+                    LogManager.w(TAG, "Could not resolve path: $normalizedEntry")
                 }
             }
 
@@ -501,10 +533,16 @@ class MusicScanner(private val context: Context) {
         try {
             _scanState.value = ScanState.Scanning(0f, "Starting scan...")
 
-            val documentFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, folderUri)
+            val documentFile = DocumentFile.fromTreeUri(context, folderUri)
             if (documentFile == null || !documentFile.exists()) {
                 _scanState.value = ScanState.Error("Invalid folder URI: $folderUri")
                 return@withContext ScanResult()
+            }
+
+            val rootDocId = try {
+                DocumentsContract.getTreeDocumentId(folderUri)
+            } catch (e: Exception) {
+                null
             }
 
             Log.i(TAG, "First pass: counting audio files...")
@@ -524,7 +562,7 @@ class MusicScanner(private val context: Context) {
             val scannedDirs = AtomicInteger(0)
             val errorCount = AtomicInteger(0)
 
-            val fileChannel = Channel<androidx.documentfile.provider.DocumentFile>(capacity = Channel.UNLIMITED)
+            val fileChannel = Channel<DocumentFile>(capacity = Channel.UNLIMITED)
 
             val scanScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -534,7 +572,7 @@ class MusicScanner(private val context: Context) {
                         if (!isActive) break
 
                         try {
-                            val metadata = processDocumentFile(file, context)
+                            val metadata = processDocumentFile(file, context, rootDocId)
                             if (metadata != null) {
                                 songs[metadata] = metadata
                                 Log.d(TAG, "Consumer $consumerId: Processed ${file.name}")
@@ -590,7 +628,7 @@ class MusicScanner(private val context: Context) {
      * 遞歸計算音頻文件數量
      */
     private suspend fun countAudioFilesRecursive(
-        directory: androidx.documentfile.provider.DocumentFile,
+        directory: DocumentFile,
         counter: AtomicInteger
     ) {
         directory.listFiles().forEach { file ->
@@ -613,8 +651,8 @@ class MusicScanner(private val context: Context) {
      * 遞歸掃描 DocumentFile 目錄
      */
     private suspend fun scanDocumentFileRecursive(
-        directory: androidx.documentfile.provider.DocumentFile,
-        channel: Channel<androidx.documentfile.provider.DocumentFile>,
+        directory: DocumentFile,
+        channel: Channel<DocumentFile>,
         dirCounter: AtomicInteger
     ) {
         dirCounter.incrementAndGet()
@@ -638,8 +676,9 @@ class MusicScanner(private val context: Context) {
      * 處理單個 DocumentFile 音頻文件
      */
     private fun processDocumentFile(
-        documentFile: androidx.documentfile.provider.DocumentFile,
-        context: Context
+        documentFile: DocumentFile,
+        context: Context,
+        rootDocId: String?
     ): MusicMetadata? {
         val name = documentFile.name ?: return null
         val extension = name.substringAfterLast('.', "").lowercase()
@@ -672,6 +711,7 @@ class MusicScanner(private val context: Context) {
             }
 
             val filePath = getRealPathFromUri(documentFile.uri) ?: documentFile.uri.toString()
+            val relativePath = buildRelativePath(documentFile, rootDocId)
 
             MusicMetadata(
                 id = System.nanoTime(),
@@ -683,6 +723,7 @@ class MusicScanner(private val context: Context) {
                 uri = documentFile.uri,
                 albumArt = savedAlbumArt?.bitmap,
                 albumArtPath = savedAlbumArt?.uriString,
+                relativePath = relativePath,
                 genre = genre,
                 year = year,
                 trackNumber = trackNumber,
@@ -698,5 +739,32 @@ class MusicScanner(private val context: Context) {
                 Log.w(TAG, "Error releasing MediaMetadataRetriever", e)
             }
         }
+    }
+
+    private fun buildRelativePath(documentFile: DocumentFile, rootDocId: String?): String? {
+        val docId = try {
+            DocumentsContract.getDocumentId(documentFile.uri)
+        } catch (e: Exception) {
+            null
+        } ?: return null
+
+        val normalizedDocId = normalizeDocId(docId)
+        val normalizedRoot = rootDocId?.let { normalizeDocId(it) }
+
+        if (normalizedRoot != null) {
+            if (normalizedDocId == normalizedRoot) {
+                return null
+            }
+            if (normalizedDocId.startsWith(normalizedRoot)) {
+                return normalizedDocId.removePrefix(normalizedRoot).trimStart('/').takeIf { it.isNotBlank() }
+            }
+        }
+
+        val pathAfterVolume = normalizedDocId.substringAfter(":", "").trimStart('/')
+        return pathAfterVolume.takeIf { it.isNotBlank() }
+    }
+
+    private fun normalizeDocId(docId: String): String {
+        return docId.replace('\\', '/').trim('/')
     }
 }

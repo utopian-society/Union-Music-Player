@@ -12,13 +12,8 @@
 package org.bibichan.union.player.ui
 
 import android.net.Uri
-import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,7 +23,10 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +45,7 @@ import org.bibichan.union.player.data.MusicScanner
 import org.bibichan.union.player.data.Playlist
 import org.bibichan.union.player.ui.components.BottomControlPanel
 import org.bibichan.union.player.ui.components.FloatingPlayer
+import org.bibichan.union.player.ui.components.FullPlayerSheetContent
 import org.bibichan.union.player.ui.components.LogManager
 import org.bibichan.union.player.ui.components.NavItem
 import org.bibichan.union.player.ui.library.LibraryScreen
@@ -72,10 +71,7 @@ fun UnionMusicApp(
     val scope = rememberCoroutineScope()
 
     var selectedTab by remember { mutableStateOf(0) }
-    var isPlayerExpanded by remember { mutableStateOf(false) }
-
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
-
     var importedPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
     val musicScanner = remember { MusicScanner(context) }
@@ -106,13 +102,25 @@ fun UnionMusicApp(
         )
     )
 
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+
+    var showPlayerSheet by remember { mutableStateOf(false) }
+
     Scaffold(
         bottomBar = {
-            BottomControlPanel(
-                items = navItems,
-                selectedIndex = selectedTab,
-                onItemSelected = { index -> selectedTab = index }
-            )
+            Column {
+                FloatingPlayer(
+                    musicPlayer = musicPlayer,
+                    onExpand = { showPlayerSheet = true }
+                )
+                BottomControlPanel(
+                    items = navItems,
+                    selectedIndex = selectedTab,
+                    onItemSelected = { index -> selectedTab = index }
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
@@ -125,8 +133,9 @@ fun UnionMusicApp(
                 selectedAlbum != null -> {
                     AlbumDetailScreen(
                         album = selectedAlbum!!,
-                        onSongClick = { song, playlist, index ->
+                        onSongClick = { _, playlist, index ->
                             playSongList(musicPlayer, playlist, index)
+                            showPlayerSheet = true
                         },
                         onBack = {
                             selectedAlbum = null
@@ -137,6 +146,9 @@ fun UnionMusicApp(
                 else -> when (selectedTab) {
                     0 -> LibraryScreen(
                         musicPlayer = musicPlayer,
+                        onAlbumClick = { albumId ->
+                            selectedAlbum = albums.firstOrNull { it.id == albumId }
+                        },
                         onRequestPermission = onRequestPermission,
                         onPermissionResult = onPermissionResult
                     )
@@ -172,6 +184,8 @@ fun UnionMusicApp(
                         onPlaylistClick = { playlist ->
                             if (playlist.songs.isNotEmpty()) {
                                 LogManager.i(TAG, "Playing playlist: ${playlist.name} with ${playlist.songs.size} songs")
+                                playSongList(musicPlayer, playlist.songs, 0)
+                                showPlayerSheet = true
                             }
                         },
                         onPlaylistDelete = { playlist ->
@@ -182,7 +196,8 @@ fun UnionMusicApp(
 
                     2 -> FilesScreen(
                         musicPlayer = musicPlayer,
-                        onFolderPickerRequest = onFolderPickerRequest
+                        onFolderPickerRequest = onFolderPickerRequest,
+                        onOpenPlayer = { showPlayerSheet = true }
                     )
 
                     3 -> MoreScreen(
@@ -192,17 +207,22 @@ fun UnionMusicApp(
                     )
                 }
             }
+        }
 
-            AnimatedVisibility(
-                visible = true,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+        if (showPlayerSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showPlayerSheet = false },
+                sheetState = sheetState
             ) {
-                FloatingPlayer(
+                FullPlayerSheetContent(
                     musicPlayer = musicPlayer,
-                    isVisible = isPlayerExpanded,
-                    onExpand = { isPlayerExpanded = true },
-                    onCollapse = { isPlayerExpanded = false }
+                    onCollapse = {
+                        scope.launch {
+                            sheetState.hide()
+                            showPlayerSheet = false
+                        }
+                    },
+                    modifier = Modifier
                 )
             }
         }
