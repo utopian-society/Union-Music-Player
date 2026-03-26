@@ -10,6 +10,8 @@
  * Gradle 9.4.1 + AGP 9.10 + Kotlin 2.1.20 + Java 25
  */
 
+val media3Version = "1.9.2"
+
 plugins {
     id("com.android.application")
     // id("org.jetbrains.kotlin.android")
@@ -116,14 +118,22 @@ dependencies {
     // Coil 图片加载 (2.7.0 是当前稳定版)
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Media3 ExoPlayer - 支持多种音频格式（ALAC 需 FFmpeg 扩展）
-    // 同时用于音频元数据提取（替代 jaudiotagger）
-    // 注意：FFmpeg 扩展未发布到 Maven，CI 将构建并发布到 Maven Local。
-    implementation("androidx.media3:media3-exoplayer:1.2.1")
-    implementation("androidx.media3:media3-exoplayer-ffmpeg:1.2.1")
-    implementation("androidx.media3:media3-ui:1.2.1")
-    implementation("androidx.media3:media3-common:1.2.1")
-    implementation("androidx.media3:media3-datasource:1.2.1")
+    // // Media3 ExoPlayer - 支持多种音频格式（ALAC 需 FFmpeg 扩展）
+    // // 同时用于音频元数据提取（替代 jaudiotagger）
+    // // 注意：FFmpeg 扩展未发布到 Maven，CI 将构建并发布到 Maven Local。
+    // implementation("androidx.media3:media3-exoplayer:1.2.1")
+    // implementation("androidx.media3:media3-exoplayer-ffmpeg:1.2.1")
+    // implementation("androidx.media3:media3-ui:1.2.1")
+    // implementation("androidx.media3:media3-common:1.2.1")
+    // implementation("androidx.media3:media3-datasource:1.2.1")
+
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+    implementation("androidx.media3:media3-datasource:$media3Version")
+
+    // FFmpeg decoder built from source (will be published to Maven Local by CI)
+    implementation("androidx.media3:media3-decoder-ffmpeg:$media3Version")
 
     // mp3agic - 轻量级 MP3 元数据提取（作为备用，主要用于 MP3 ID3 标签）
     implementation("com.mpatric:mp3agic:0.9.1")

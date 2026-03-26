@@ -59,48 +59,64 @@ jobs:
       run: chmod +x ./gradlew
 
     # ==================== Build Media3 FFmpeg Extension ====================
-    - name: Build Media3 FFmpeg extension and publish to Maven Local
+    - name: Build Media3 FFmpeg decoder from source and publish to Maven Local
       env:
-        MEDIA3_VERSION: '1.2.1'
+        MEDIA3_VERSION: '1.9.2'
         NDK_VERSION: '26.1.10909125'
       run: |
         rm -rf media3 || true
 
-        git clone https://github.com/androidx/media.git media3
+        # Shallow clone for speed
+        git clone --depth 1 --branch ${MEDIA3_VERSION} https://github.com/androidx/media.git media3
         cd media3
-
-        git fetch --tags --force
-
-        if git rev-parse -q --verify "refs/tags/${MEDIA3_VERSION}" > /dev/null; then
-          echo "✅ Checking out Media3 ${MEDIA3_VERSION}"
-          git checkout "${MEDIA3_VERSION}"
-        else
-          echo "❌ Tag ${MEDIA3_VERSION} not found!" >&2
-          exit 1
-        fi
 
         chmod +x ./gradlew
 
-        # === FORCE Gradle 9.4.1 BEFORE any Gradle command ===
-        echo "Setting Gradle wrapper to 9.4.1..."
+        # Force Gradle 9.4.1 + JDK 25 compatibility
         sed -i 's|distributionUrl=.*|distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-all.zip|' gradle/wrapper/gradle-wrapper.properties
-
-        # Verify the change
-        cat gradle/wrapper/gradle-wrapper.properties | grep distributionUrl
 
         export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
         export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
 
-        # Clean any old daemon
         ./gradlew --stop || true
 
-        echo "🚀 Building :libraries:decoder_ffmpeg with Gradle 9.4.1 + JDK 25..."
+        echo "Building native FFmpeg libraries (ALAC + AAC + FLAC + MP3 + WAV support)..."
+
+        # === Build native FFmpeg first (most important step) ===
+        FFMPEG_MODULE_PATH="$(pwd)/libraries/decoder_ffmpeg/src/main"
+        HOST_PLATFORM="linux-x86_64"
+        ANDROID_ABI="21"   # Change to your minSdk if higher
+
+        # Decoders needed for your formats:
+        # - alac     → ALAC (Apple Lossless)
+        # - aac      → AAC (including in M4A)
+        # - flac     → FLAC
+        # - mp3      → MP3
+        # - pcm_*    → WAV (PCM)
+        ENABLED_DECODERS=(alac aac flac mp3 pcm_mulaw pcm_alaw)
+
+        cd "${FFMPEG_MODULE_PATH}/jni"
+
+        # Run the official build script
+        ./build_ffmpeg.sh \
+          "${FFMPEG_MODULE_PATH}" \
+          "${ANDROID_NDK_HOME}" \
+          "${HOST_PLATFORM}" \
+          "${ANDROID_ABI}" \
+          "${ENABLED_DECODERS[@]}"
+
+        echo "Native FFmpeg build completed. Now building the Android library..."
+
+        # Go back to media3 root and build + publish the AAR
+        cd /home/runner/work/Union-Music-Player/Union-Music-Player/media3
 
         ./gradlew :libraries:decoder_ffmpeg:publishToMavenLocal \
           --no-daemon \
           --stacktrace \
           -Pandroid.ndkPath="${ANDROID_NDK_HOME}" \
           --max-workers=2
+
+        cd ..
     # =====================================================================
 
     - name: Update version in build.gradle.kts
