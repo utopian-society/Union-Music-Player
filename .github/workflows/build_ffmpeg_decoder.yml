@@ -106,7 +106,17 @@ jobs:
 
         # Copy AAR to libs/ at repository root
         mkdir -p ../libs
-        cp libraries/decoder_ffmpeg/build/outputs/aar/lib-decoder-ffmpeg-release.aar ../libs/
+
+        echo "Locating AAR output..."
+        ls -la libraries/decoder_ffmpeg/build/outputs/aar || true
+
+        AAR_PATH="$(find libraries/decoder_ffmpeg/build/outputs/aar -maxdepth 1 -type f -name '*release*.aar' | head -n 1)"
+        if [ -z "${AAR_PATH}" ]; then
+          echo "❌ Release AAR not found under libraries/decoder_ffmpeg/build/outputs/aar"
+          exit 1
+        fi
+
+        cp "${AAR_PATH}" ../libs/lib-decoder-ffmpeg-release.aar
 
         echo "✅ Successfully built FFmpeg decoder!"
-        ls -lh ../libs/
+        ls -lh ../libs
