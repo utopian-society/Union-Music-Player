@@ -29,73 +29,76 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up JDK 25 (App build)
+    # Use JDK 25 for the entire workflow
+    - name: Set up JDK 25
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: '25'
+        cache: gradle
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install required SDK components (compileSdk 35 + NDK)
+    - name: Install required SDK components
       run: |
         sdkmanager --install "platforms;android-35" \
-        "build-tools;35.0.0" \
-        "platform-tools" \
-        "cmdline-tools;latest" \
-        "ndk;26.1.10909125" \
-        "cmake;3.22.1"
+          "build-tools;35.0.0" \
+          "platform-tools" \
+          "cmdline-tools;latest" \
+          "ndk;26.1.10909125" \
+          "cmake;3.22.1"
         yes | sdkmanager --licenses
 
-    - name: Install native build tools (FFmpeg)
+    - name: Install native build tools for FFmpeg
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          autoconf \
-          automake \
-          libtool \
-          make \
-          nasm \
-          pkg-config \
-          yasm
+        sudo apt-get install -y autoconf automake libtool make nasm pkg-config yasm
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    - name: Set up JDK 17 (Media3 build)
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
-
+    # ==================== Build Media3 FFmpeg Extension ====================
     - name: Build Media3 FFmpeg extension and publish to Maven Local
       env:
         MEDIA3_VERSION: '1.2.1'
         NDK_VERSION: '26.1.10909125'
       run: |
+        rm -rf media3 || true
+
         git clone https://github.com/androidx/media.git media3
         cd media3
-        git fetch --tags
+
+        git fetch --tags --force
 
         if git rev-parse -q --verify "refs/tags/${MEDIA3_VERSION}" > /dev/null; then
+          echo "✅ Checking out Media3 ${MEDIA3_VERSION}"
           git checkout "${MEDIA3_VERSION}"
         else
-          echo "Tag ${MEDIA3_VERSION} not found in https://github.com/androidx/media.git" >&2
+          echo "❌ Tag ${MEDIA3_VERSION} not found!" >&2
           exit 1
         fi
 
         chmod +x ./gradlew
-        export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
-        export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
-        ./gradlew :libraries:exoplayer_ffmpeg:publishToMavenLocal --no-daemon
-        cd ..
 
-    - name: Set up JDK 25 (App build)
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '25'
+        # Force Gradle 9.4.1 (Media3 1.2.1 uses old Gradle 8.x)
+        sed -i 's/distributionUrl=.*/distributionUrl=https\\:\/\/services.gradle.org\/distributions\/gradle-9.4.1-all.zip/' gradle/wrapper/gradle-wrapper.properties
+
+        export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+        export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
+
+        # Stop any old daemon
+        ./gradlew --stop || true
+
+        echo "Building decoder_ffmpeg with Gradle 9.4.1 + JDK 25..."
+
+        ./gradlew :libraries:decoder_ffmpeg:publishToMavenLocal \
+          --no-daemon \
+          --stacktrace \
+          -Pandroid.ndkPath="${ANDROID_NDK_HOME}"
+
+        cd ..
+    # =====================================================================
 
     - name: Update version in build.gradle.kts
       run: |
@@ -114,12 +117,13 @@ jobs:
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleRelease --no-daemon
 
     - name: Build Debug APK
       if: ${{ inputs.build_type == 'debug' }}
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleDebug --no-daemon
 
+    # ... (rest of your steps: Prepare artifact, Generate release notes, Create GitHub Release, Upload artifact) remain unchanged
     - name: Prepare release artifact (Release)
       if: ${{ inputs.build_type == 'release' }}
       run: |
