@@ -118,6 +118,7 @@ dependencies {
 
     // Media3 ExoPlayer - 支持多种音频格式（ALAC 需 FFmpeg 扩展）
     // 同时用于音频元数据提取（替代 jaudiotagger）
+    // 注意：FFmpeg 扩展未发布到 Maven，CI 将构建并发布到 Maven Local。
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-exoplayer-ffmpeg:1.2.1")
     implementation("androidx.media3:media3-ui:1.2.1")
