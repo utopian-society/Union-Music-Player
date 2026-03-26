@@ -29,7 +29,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up JDK 25
+    - name: Set up JDK 25 (App build)
       uses: actions/setup-java@v4
       with:
         distribution: temurin
@@ -48,8 +48,26 @@ jobs:
         "cmake;3.22.1"
         yes | sdkmanager --licenses
 
+    - name: Install native build tools (FFmpeg)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          autoconf \
+          automake \
+          libtool \
+          make \
+          nasm \
+          pkg-config \
+          yasm
+
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
+
+    - name: Set up JDK 17 (Media3 build)
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
 
     - name: Build Media3 FFmpeg extension and publish to Maven Local
       env:
@@ -59,11 +77,25 @@ jobs:
         git clone https://github.com/androidx/media.git media3
         cd media3
         git fetch --tags
-        git checkout "androidx-media3-${MEDIA3_VERSION}" || git checkout "${MEDIA3_VERSION}"
+
+        if git rev-parse -q --verify "refs/tags/${MEDIA3_VERSION}" > /dev/null; then
+          git checkout "${MEDIA3_VERSION}"
+        else
+          echo "Tag ${MEDIA3_VERSION} not found in https://github.com/androidx/media.git" >&2
+          exit 1
+        fi
+
+        chmod +x ./gradlew
         export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
         export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
         ./gradlew :libraries:exoplayer_ffmpeg:publishToMavenLocal --no-daemon
         cd ..
+
+    - name: Set up JDK 25 (App build)
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '25'
 
     - name: Update version in build.gradle.kts
       run: |
