@@ -17,3 +17,7 @@ media3/build/
 media3/**/build/
 media3/.gradle/
 media3/libraries/decoder_ffmpeg/src/main/jni/ffmpeg/
+
+# Allow committing FFmpeg decoder AAR
+!libs/
+!libs/lib-decoder-ffmpeg-release.aar

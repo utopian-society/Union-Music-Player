@@ -17,6 +17,9 @@ on:
           - 'all'      # Recommended for better device support
           - '21'       # Smaller size (only API 21+)
 
+permissions:
+  contents: write
+
 jobs:
   build-decoder:
     runs-on: ubuntu-latest
@@ -27,6 +30,7 @@ jobs:
       with:
         submodules: true
         fetch-depth: 0
+        persist-credentials: true
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -51,7 +55,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y autoconf automake libtool make nasm yasm pkg-config
 
-    - name: Build FFmpeg Decoder and copy AAR to libs/
+    - name: Build FFmpeg Decoder and commit AAR to libs/
       env:
         NDK_VERSION: '26.1.10909125'
         MEDIA3_TAG: ${{ inputs.media3_tag }}
@@ -111,7 +115,7 @@ jobs:
         AAR_PATH="$(find . -type f -path '*/outputs/aar/*' -name '*ffmpeg*release*.aar' | head -n 1)"
         if [ -z "${AAR_PATH}" ]; then
           echo "ERROR: Release AAR not found under any outputs/aar folder"
-          echo "All AARs produced:" 
+          echo "All AARs produced:"
           find . -type f -name '*.aar' | sort
           exit 1
         fi
@@ -120,3 +124,15 @@ jobs:
 
         echo "OK: Built FFmpeg decoder"
         ls -lh ../libs
+
+        # Commit the AAR to the repository
+        cd ..
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add libs/lib-decoder-ffmpeg-release.aar
+        if [ -n "$(git status --porcelain libs/lib-decoder-ffmpeg-release.aar)" ]; then
+          git commit -m "Update FFmpeg decoder AAR"
+          git push
+        else
+          echo "No changes to commit"
+        fi
