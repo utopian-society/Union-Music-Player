@@ -82,7 +82,7 @@ jobs:
 
           cd "${FFMPEG_MODULE_PATH}/jni"
           ln -sfn "${FFMPEG_PATH}" ffmpeg
-          echo "✓ Symlink created"
+          echo "Symlink created"
         fi
 
         # Build native FFmpeg libraries
@@ -108,15 +108,15 @@ jobs:
         mkdir -p ../libs
 
         echo "Locating AAR output..."
-        ls -la libraries/decoder_ffmpeg/build/outputs/aar || true
-
-        AAR_PATH="$(find libraries/decoder_ffmpeg/build/outputs/aar -maxdepth 1 -type f -name '*release*.aar' | head -n 1)"
+        AAR_PATH="$(find . -type f -path '*/outputs/aar/*' -name '*ffmpeg*release*.aar' | head -n 1)"
         if [ -z "${AAR_PATH}" ]; then
-          echo "❌ Release AAR not found under libraries/decoder_ffmpeg/build/outputs/aar"
+          echo "ERROR: Release AAR not found under any outputs/aar folder"
+          echo "All AARs produced:" 
+          find . -type f -name '*.aar' | sort
           exit 1
         fi
 
         cp "${AAR_PATH}" ../libs/lib-decoder-ffmpeg-release.aar
 
-        echo "✅ Successfully built FFmpeg decoder!"
+        echo "OK: Built FFmpeg decoder"
         ls -lh ../libs
