@@ -21,11 +21,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.bibichan.union.player.data.AudioFormat
 import org.bibichan.union.player.data.MusicMetadata
+import org.bibichan.union.player.ui.components.LogManager
 
 /**
  * MusicPlayer类 - 音乐播放器封装
@@ -78,6 +80,19 @@ class MusicPlayer(private val context: Context) {
 
                     setHandleAudioBecomingNoisy(true)
 
+                    addAnalyticsListener(object : AnalyticsListener {
+                        override fun onAudioDecoderInitialized(
+                            eventTime: AnalyticsListener.EventTime,
+                            decoderName: String,
+                            initializedTimestampMs: Long,
+                            initializationDurationMs: Long
+                        ) {
+                            val usesFfmpeg = decoderName.contains("ffmpeg", ignoreCase = true)
+                            val status = if (usesFfmpeg) "FFmpeg active" else "FFmpeg not active"
+                            LogManager.i(TAG, "Audio decoder initialized: $decoderName ($status)")
+                        }
+                    })
+
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
                             _playbackStateFlow.value = playbackState
@@ -110,6 +125,7 @@ class MusicPlayer(private val context: Context) {
                         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                             val message = "Playback error: ${error.errorCodeName}"
                             Log.e(TAG, message, error)
+                            LogManager.e(TAG, message, error)
                             _lastErrorFlow.value = message
                             playbackListener?.onError(message)
                         }
@@ -118,6 +134,7 @@ class MusicPlayer(private val context: Context) {
             Log.d(TAG, "ExoPlayer initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing ExoPlayer", e)
+            LogManager.e(TAG, "Error initializing ExoPlayer", e)
             _lastErrorFlow.value = "Player init error: ${e.message}"
         }
     }
