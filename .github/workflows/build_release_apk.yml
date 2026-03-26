@@ -24,12 +24,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout repository with submodules
       uses: actions/checkout@v4
       with:
+        submodules: true          # Important for media3 submodule
         fetch-depth: 0
 
-    # Use JDK 25 for the entire workflow
     - name: Set up JDK 25
       uses: actions/setup-java@v4
       with:
@@ -50,77 +50,11 @@ jobs:
           "cmake;3.22.1"
         yes | sdkmanager --licenses
 
-    - name: Install native build tools for FFmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y autoconf automake libtool make nasm pkg-config yasm
-
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # ==================== Build Media3 FFmpeg Extension ====================
-    - name: Build Media3 FFmpeg decoder from source (ALAC + AAC + FLAC + MP3 + WAV)
-      env:
-        MEDIA3_VERSION: '1.9.2'
-        NDK_VERSION: '26.1.10909125'
-      run: |
-        rm -rf media3 || true
-
-        git clone --depth 1 --branch ${MEDIA3_VERSION} https://github.com/androidx/media.git media3
-        cd media3
-
-        chmod +x ./gradlew
-
-        # Force Gradle 9.4.1 for JDK 25 compatibility
-        sed -i 's|distributionUrl=.*|distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-all.zip|' gradle/wrapper/gradle-wrapper.properties
-
-        export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
-        export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
-
-        ./gradlew --stop || true
-
-        echo "=== Preparing FFmpeg source and building native libraries ==="
-
-        FFMPEG_MODULE_PATH="$(pwd)/libraries/decoder_ffmpeg/src/main"
-        HOST_PLATFORM="linux-x86_64"
-        ANDROID_ABI="21"                     # your minSdk or higher
-
-        # Decoders required for your formats
-        ENABLED_DECODERS=(alac aac flac mp3 pcm_mulaw pcm_alaw)
-
-        # 1. Download FFmpeg source (release/6.1 is stable with good ALAC/AAC support)
-        mkdir -p /tmp/ffmpeg
-        cd /tmp/ffmpeg
-        git clone --depth 1 --branch release/6.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
-        FFMPEG_PATH="$(pwd)/ffmpeg"
-
-        # 2. Create the required symlink
-        cd "${FFMPEG_MODULE_PATH}/jni"
-        ln -sfn "${FFMPEG_PATH}" ffmpeg
-        echo "Created symlink: $(ls -l ffmpeg)"
-
-        # 3. Run the build script
-        echo "Starting build_ffmpeg.sh with decoders: ${ENABLED_DECODERS[*]}"
-        ./build_ffmpeg.sh \
-          "${FFMPEG_MODULE_PATH}" \
-          "${ANDROID_NDK_HOME}" \
-          "${HOST_PLATFORM}" \
-          "${ANDROID_ABI}" \
-          "${ENABLED_DECODERS[@]}"
-
-        echo "Native FFmpeg build finished. Now building the AAR..."
-
-        # 4. Build and publish the Android library to Maven Local
-        cd /home/runner/work/Union-Music-Player/Union-Music-Player/media3
-
-        ./gradlew :libraries:decoder_ffmpeg:publishToMavenLocal \
-          --no-daemon \
-          --stacktrace \
-          -Pandroid.ndkPath="${ANDROID_NDK_HOME}" \
-          --max-workers=2
-
-        cd ..
-    # =====================================================================
+    # ==================== REMOVED: All Media3 FFmpeg build steps ====================
+    # No more git clone, no more build_ffmpeg.sh, no more publishToMavenLocal
 
     - name: Update version in build.gradle.kts
       run: |
@@ -145,7 +79,6 @@ jobs:
       if: ${{ inputs.build_type == 'debug' }}
       run: ./gradlew assembleDebug --no-daemon
 
-    # ... (rest of your steps: Prepare artifact, Generate release notes, Create GitHub Release, Upload artifact) remain unchanged
     - name: Prepare release artifact (Release)
       if: ${{ inputs.build_type == 'release' }}
       run: |
@@ -158,6 +91,7 @@ jobs:
         mkdir -p debug
         cp app/build/outputs/apk/debug/app-debug.apk debug/UnionMusicPlayer-v${{ inputs.version }}-debug.apk
 
+    # Release notes + GitHub Release steps remain the same
     - name: Generate release notes
       if: ${{ inputs.build_type == 'release' }}
       id: release_notes
@@ -165,16 +99,12 @@ jobs:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
         TAG_NAME="v${{ inputs.version }}"
-
-        # Generate release notes using GitHub API
         RELEASE_NOTES=$(gh api -X POST /repos/${{ github.repository }}/releases/generate-notes \
           -f tag_name="$TAG_NAME" \
           -f previous_tag_name="" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2026-03-10" \
           --jq '.body')
-
-        # Save to file for multiline string handling
         echo "$RELEASE_NOTES" > release_notes.md
         echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT

@@ -11,3 +11,9 @@ log.txt
 tmp.sh
 
 keystore_base64.txt
+
+# Ignore build outputs from media3 submodule
+media3/build/
+media3/**/build/
+media3/.gradle/
+media3/libraries/decoder_ffmpeg/src/main/jni/ffmpeg/

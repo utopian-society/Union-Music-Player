@@ -1,0 +1,112 @@
+name: Build FFmpeg Decoder (Media3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      media3_tag:
+        description: 'Media3 tag/version to use'
+        required: true
+        default: '1.9.2'
+        type: string
+      build_abi:
+        description: 'Build for which ABI?'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'      # Recommended for better device support
+          - '21'       # Smaller size (only API 21+)
+
+jobs:
+  build-decoder:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository with submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+        cache: gradle
+
+    - name: Setup Android SDK & NDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install required SDK components
+      run: |
+        sdkmanager --install "platforms;android-35" \
+          "build-tools;35.0.0" \
+          "ndk;26.1.10909125" \
+          "cmake;3.22.1"
+        yes | sdkmanager --licenses
+
+    - name: Install native build tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y autoconf automake libtool make nasm yasm pkg-config
+
+    - name: Build FFmpeg Decoder and copy AAR to libs/
+      env:
+        NDK_VERSION: '26.1.10909125'
+        MEDIA3_TAG: ${{ inputs.media3_tag }}
+        ANDROID_ABI: ${{ inputs.build_abi }}
+      run: |
+        echo "=== Building Media3 FFmpeg Decoder (${MEDIA3_TAG}) for ABI: ${ANDROID_ABI} ==="
+
+        cd media3
+
+        # Force Gradle 9.4.1 (compatible with JDK 25 for main build)
+        sed -i 's|distributionUrl=.*|distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-all.zip|' gradle/wrapper/gradle-wrapper.properties
+
+        export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+        export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
+
+        chmod +x ./gradlew
+        ./gradlew --stop || true
+
+        # Prepare FFmpeg source + symlink
+        FFMPEG_MODULE_PATH="$(pwd)/libraries/decoder_ffmpeg/src/main"
+
+        if [ ! -d "${FFMPEG_MODULE_PATH}/jni/ffmpeg" ]; then
+          echo "Downloading FFmpeg source..."
+          mkdir -p /tmp/ffmpeg
+          cd /tmp/ffmpeg
+          git clone --depth 1 --branch release/6.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+          FFMPEG_PATH="$(pwd)/ffmpeg"
+
+          cd "${FFMPEG_MODULE_PATH}/jni"
+          ln -sfn "${FFMPEG_PATH}" ffmpeg
+          echo "✓ Symlink created"
+        fi
+
+        # Build native FFmpeg libraries
+        echo "Building native FFmpeg with decoders: alac aac flac mp3 pcm_mulaw pcm_alaw"
+        cd "${FFMPEG_MODULE_PATH}/jni"
+
+        ./build_ffmpeg.sh \
+          "${FFMPEG_MODULE_PATH}" \
+          "${ANDROID_NDK_HOME}" \
+          "linux-x86_64" \
+          "${ANDROID_ABI}" \
+          alac aac flac mp3 pcm_mulaw pcm_alaw
+
+        # Build the AAR
+        echo "Building AAR file..."
+        cd /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/media3
+
+        ./gradlew :lib-decoder-ffmpeg:assembleRelease \
+          --no-daemon \
+          -Pandroid.ndkPath="${ANDROID_NDK_HOME}"
+
+        # Copy AAR to libs/ at repository root
+        mkdir -p ../libs
+        cp libraries/decoder_ffmpeg/build/outputs/aar/lib-decoder-ffmpeg-release.aar ../libs/
+
+        echo "✅ Successfully built FFmpeg decoder!"
+        ls -lh ../libs/
