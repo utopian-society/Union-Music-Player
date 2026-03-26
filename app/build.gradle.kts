@@ -133,7 +133,7 @@ dependencies {
     implementation("androidx.media3:media3-datasource:$media3Version")
 
     // Local FFmpeg Decoder (built from media3 submodule)
-    implementation("lib-decoder-ffmpeg:lib-decoder-ffmpeg-release")
+    implementation(files("../libs/lib-decoder-ffmpeg-release.aar"))
 
     // mp3agic - 轻量级 MP3 元数据提取（作为备用，主要用于 MP3 ID3 标签）
     implementation("com.mpatric:mp3agic:0.9.1")

@@ -19,10 +19,6 @@ dependencyResolutionManagement {
         mavenCentral()
         mavenLocal()
         maven { url = uri("https://jitpack.io") }
-        flatDir {
-            dirs("libs")        // Path relative to app module
-        }
-    }
 }
 
 plugins {
