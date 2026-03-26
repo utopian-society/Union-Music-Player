@@ -81,23 +81,26 @@ jobs:
 
         chmod +x ./gradlew
 
-        # Force Gradle 9.4.1 (Media3 1.2.1 uses old Gradle 8.x)
-        sed -i 's/distributionUrl=.*/distributionUrl=https\\:\/\/services.gradle.org\/distributions\/gradle-9.4.1-all.zip/' gradle/wrapper/gradle-wrapper.properties
+        # === FORCE Gradle 9.4.1 BEFORE any Gradle command ===
+        echo "Setting Gradle wrapper to 9.4.1..."
+        sed -i 's|distributionUrl=.*|distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-all.zip|' gradle/wrapper/gradle-wrapper.properties
+
+        # Verify the change
+        cat gradle/wrapper/gradle-wrapper.properties | grep distributionUrl
 
         export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
         export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
 
-        # Stop any old daemon
+        # Clean any old daemon
         ./gradlew --stop || true
 
-        echo "Building decoder_ffmpeg with Gradle 9.4.1 + JDK 25..."
+        echo "🚀 Building :libraries:decoder_ffmpeg with Gradle 9.4.1 + JDK 25..."
 
         ./gradlew :libraries:decoder_ffmpeg:publishToMavenLocal \
           --no-daemon \
           --stacktrace \
-          -Pandroid.ndkPath="${ANDROID_NDK_HOME}"
-
-        cd ..
+          -Pandroid.ndkPath="${ANDROID_NDK_HOME}" \
+          --max-workers=2
     # =====================================================================
 
     - name: Update version in build.gradle.kts
