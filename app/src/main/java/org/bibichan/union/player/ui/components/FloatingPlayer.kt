@@ -5,7 +5,8 @@
  */
 package org.bibichan.union.player.ui.components
 
-import androidx.compose.foundation.Canvas
+import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -24,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -58,15 +59,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicMetadata
@@ -75,7 +84,8 @@ import org.bibichan.union.player.data.MusicMetadata
 fun FloatingPlayer(
     musicPlayer: MusicPlayer,
     onExpand: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBoundsChanged: ((Rect) -> Unit)? = null
 ) {
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
@@ -84,6 +94,9 @@ fun FloatingPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
+            .onGloballyPositioned { coordinates ->
+                onBoundsChanged?.invoke(coordinates.boundsInRoot())
+            }
             .clickable { onExpand() },
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
@@ -177,7 +190,9 @@ private fun MiniPlayerContent(
 fun FullPlayerSheetContent(
     musicPlayer: MusicPlayer,
     onCollapse: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    expandProgress: Float = 1f,
+    collapseDragOffsetY: Float = 0f
 ) {
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
@@ -215,304 +230,279 @@ fun FullPlayerSheetContent(
         playbackState == Player.STATE_BUFFERING -> "Buffering..."
         else -> null
     }
+    val albumArtModel = remember(currentSong?.albumArtPath, currentSong?.albumArt) {
+        resolveAlbumArt(currentSong)
+    }
+    val qualityLabel = remember(currentSong?.format, currentSong?.bitDepth, currentSong?.sampleRateHz) {
+        buildQualityLabel(currentSong)
+    }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(DeepBlue)
-            .padding(horizontal = 24.dp, vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier.fillMaxSize()
     ) {
-        StatusBarRow(
-            timeText = "21:11",
-            networkText = "5G",
-            batteryText = "48%"
+        AlbumArtBackdrop(
+            albumArtModel = albumArtModel,
+            expandProgress = expandProgress
         )
 
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .offset { IntOffset(0, collapseDragOffsetY.toInt()) }
+                .padding(horizontal = 24.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onCollapse) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Collapse",
-                    tint = TextSecondary
-                )
-            }
-        }
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(18.dp))
+            AlbumArtCard(
+                albumArtModel = albumArtModel,
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .aspectRatio(1f)
+            )
 
-        StarryAlbumArt(
-            modifier = Modifier
-                .fillMaxWidth(0.72f)
-                .aspectRatio(1f)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = albumTitle,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontStyle = FontStyle.Italic,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = songTitle,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = TextPrimary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (!statusText.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(24.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
             ) {
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = TextSecondary
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = albumTitle,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontStyle = FontStyle.Italic,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = songTitle,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = TextPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = artistName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (!statusText.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted
+                        )
+                    }
                 }
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More options",
-                        tint = TextSecondary
-                    )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    IconButton(onClick = { }) {
+                        Icon(
+                            imageVector = Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = TextSecondary
+                        )
+                    }
+                    IconButton(onClick = { }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More options",
+                            tint = TextSecondary
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-        Slider(
-            value = sliderPosition,
-            onValueChange = { value ->
-                sliderPosition = value
-                isSeeking = true
-            },
-            onValueChangeFinished = {
-                val target = (sliderPosition * durationMs).toLong()
-                musicPlayer.seekTo(target)
-                isSeeking = false
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = AccentBlue,
-                activeTrackColor = AccentBlue,
-                inactiveTrackColor = SliderInactive
+            Slider(
+                value = sliderPosition,
+                onValueChange = { value ->
+                    sliderPosition = value
+                    isSeeking = true
+                },
+                onValueChangeFinished = {
+                    val target = (sliderPosition * durationMs).toLong()
+                    musicPlayer.seekTo(target)
+                    isSeeking = false
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = AccentBlue,
+                    activeTrackColor = AccentBlue,
+                    inactiveTrackColor = SliderInactive
+                )
             )
-        )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(positionMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+                Text(
+                    text = formatRemainingTime(positionMs, durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             Text(
-                text = formatTime(positionMs),
+                text = qualityLabel,
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
+                color = TextMuted
             )
-            Text(
-                text = formatRemainingTime(positionMs, durationMs),
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.weight(1f))
+
+            PlaybackControlsRow(
+                isPlaying = isPlaying,
+                onPrevious = { musicPlayer.previous() },
+                onPlayPause = {
+                    if (musicPlayer.isPlaying()) {
+                        musicPlayer.pause()
+                    } else {
+                        musicPlayer.resume()
+                    }
+                },
+                onNext = { musicPlayer.next() }
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            SecondaryControlsRow(
+                onVolume = { },
+                onComments = { },
+                onShuffle = { },
+                onPlaylist = { }
             )
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = "高解析度無損壓縮",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextMuted
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Spacer(modifier = Modifier.weight(1f))
-
-        PlaybackControlsRow(
-            isPlaying = isPlaying,
-            onPrevious = { musicPlayer.previous() },
-            onPlayPause = {
-                if (musicPlayer.isPlaying()) {
-                    musicPlayer.pause()
-                } else {
-                    musicPlayer.resume()
-                }
-            },
-            onNext = { musicPlayer.next() }
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        SecondaryControlsRow(
-            onVolume = { },
-            onComments = { },
-            onShuffle = { },
-            onPlaylist = { }
-        )
     }
 }
 
 @Composable
-private fun StatusBarRow(
-    timeText: String,
-    networkText: String,
-    batteryText: String
+private fun AlbumArtBackdrop(
+    albumArtModel: Any?,
+    expandProgress: Float
 ) {
-    Row(
+    val blurStrength = 6f + (18f * expandProgress.coerceIn(0f, 1f))
+
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxSize()
+            .background(DeepBlue)
     ) {
-        Text(
-            text = timeText,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Text(
-            text = networkText,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Text(
-            text = batteryText,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary
+        if (albumArtModel != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(albumArtModel)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(0.dp)
+                    .clip(RectangleShape)
+                    .graphicsLayer {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            renderEffect = android.graphics.RenderEffect
+                                .createBlurEffect(blurStrength, blurStrength, android.graphics.Shader.TileMode.CLAMP)
+                        }
+                    },
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xCC0A1F3E),
+                            Color(0xFF0A1F3E)
+                        )
+                    )
+                )
         )
     }
 }
 
 @Composable
-private fun StarryAlbumArt(
+private fun AlbumArtCard(
+    albumArtModel: Any?,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(16.dp)
+
     Box(
         modifier = modifier
             .shadow(14.dp, shape)
             .clip(shape)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF102B57),
-                        Color(0xFF08162D)
-                    )
-                )
-            )
+            .background(Color(0xFF102B57))
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val starColor = Color(0xFFE8F1FF)
-            val starPositions = listOf(
-                Offset(size.width * 0.15f, size.height * 0.2f),
-                Offset(size.width * 0.32f, size.height * 0.12f),
-                Offset(size.width * 0.56f, size.height * 0.18f),
-                Offset(size.width * 0.78f, size.height * 0.3f),
-                Offset(size.width * 0.22f, size.height * 0.48f),
-                Offset(size.width * 0.63f, size.height * 0.52f),
-                Offset(size.width * 0.84f, size.height * 0.6f)
+        if (albumArtModel != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(albumArtModel)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Album Art",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-            starPositions.forEach { position ->
-                drawCircle(
-                    color = starColor,
-                    radius = 2.2f,
-                    center = position
-                )
-            }
-
-            val houseBaseSize = size.width * 0.18f
-            val houseLeft = size.width * 0.55f
-            val houseTop = size.height * 0.68f
-            drawRoundRect(
-                color = Color(0xFF1A2A44),
-                topLeft = Offset(houseLeft, houseTop),
-                size = androidx.compose.ui.geometry.Size(houseBaseSize, houseBaseSize * 0.65f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-            )
-
-            val roofPath = Path().apply {
-                moveTo(houseLeft, houseTop)
-                lineTo(houseLeft + houseBaseSize / 2f, houseTop - houseBaseSize * 0.4f)
-                lineTo(houseLeft + houseBaseSize, houseTop)
-                close()
-            }
-            drawPath(
-                path = roofPath,
-                color = Color(0xFF243A5C)
-            )
-
-            val constellation = listOf(
-                Offset(size.width * 0.18f, size.height * 0.36f),
-                Offset(size.width * 0.28f, size.height * 0.32f),
-                Offset(size.width * 0.36f, size.height * 0.38f),
-                Offset(size.width * 0.46f, size.height * 0.34f)
-            )
-            for (i in 0 until constellation.size - 1) {
-                drawLine(
-                    color = Color(0xFF9FBCE8),
-                    start = constellation[i],
-                    end = constellation[i + 1],
-                    strokeWidth = 2f
-                )
-                drawCircle(
-                    color = Color(0xFFD7E5FF),
-                    radius = 2.4f,
-                    center = constellation[i]
-                )
-            }
-            drawCircle(
-                color = Color(0xFFD7E5FF),
-                radius = 2.4f,
-                center = constellation.last()
+        } else {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = "Album Art",
+                tint = Color(0xFF9FBCE8),
+                modifier = Modifier
+                    .size(64.dp)
+                    .align(Alignment.Center)
             )
         }
     }
+}
+
+private fun resolveAlbumArt(song: MusicMetadata?): Any? {
+    return when {
+        song?.albumArtPath != null -> Uri.parse(song.albumArtPath)
+        song?.albumArt != null -> song.albumArt
+        else -> null
+    }
+}
+
+private fun buildQualityLabel(song: MusicMetadata?): String {
+    val formatLabel = song?.format?.displayName ?: "Unknown"
+    val bitDepth = song?.bitDepth?.takeIf { it > 0 }?.toString() ?: "--"
+    val sampleRateHz = song?.sampleRateHz?.takeIf { it > 0 }?.toString() ?: "--"
+    return "$formatLabel · $bitDepth/${sampleRateHz}Hz"
 }
 
 @Composable

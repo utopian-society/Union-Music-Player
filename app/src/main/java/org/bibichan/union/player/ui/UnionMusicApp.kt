@@ -12,30 +12,39 @@
 package org.bibichan.union.player.ui
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,7 +64,6 @@ import org.bibichan.union.player.ui.screens.AlbumDetailScreen
 import org.bibichan.union.player.ui.screens.FilesScreen
 import org.bibichan.union.player.ui.screens.MoreScreen
 import org.bibichan.union.player.ui.screens.PlaylistManagementScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 private const val TAG = "UnionMusicApp"
 
@@ -73,6 +81,9 @@ fun UnionMusicApp(
     var selectedTab by remember { mutableStateOf(0) }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var importedPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var showPlayerOverlay by remember { mutableStateOf(false) }
+    var miniPlayerBounds by remember { mutableStateOf<Rect?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
     val musicScanner = remember { MusicScanner(context) }
 
@@ -102,18 +113,20 @@ fun UnionMusicApp(
         )
     )
 
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
+    val density = LocalDensity.current
+    val expandProgress by animateFloatAsState(
+        targetValue = if (showPlayerOverlay) 1f else 0f,
+        animationSpec = tween(durationMillis = 420),
+        label = "playerExpand"
     )
-
-    var showPlayerSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         bottomBar = {
             Column {
                 FloatingPlayer(
                     musicPlayer = musicPlayer,
-                    onExpand = { showPlayerSheet = true }
+                    onExpand = { showPlayerOverlay = true },
+                    onBoundsChanged = { bounds -> miniPlayerBounds = bounds }
                 )
                 BottomControlPanel(
                     items = navItems,
@@ -135,7 +148,7 @@ fun UnionMusicApp(
                         album = selectedAlbum!!,
                         onSongClick = { _, playlist, index ->
                             playSongList(musicPlayer, playlist, index)
-                            showPlayerSheet = true
+                            showPlayerOverlay = true
                         },
                         onBack = {
                             selectedAlbum = null
@@ -185,7 +198,7 @@ fun UnionMusicApp(
                             if (playlist.songs.isNotEmpty()) {
                                 LogManager.i(TAG, "Playing playlist: ${playlist.name} with ${playlist.songs.size} songs")
                                 playSongList(musicPlayer, playlist.songs, 0)
-                                showPlayerSheet = true
+                                showPlayerOverlay = true
                             }
                         },
                         onPlaylistDelete = { playlist ->
@@ -197,7 +210,7 @@ fun UnionMusicApp(
                     2 -> FilesScreen(
                         musicPlayer = musicPlayer,
                         onFolderPickerRequest = onFolderPickerRequest,
-                        onOpenPlayer = { showPlayerSheet = true }
+                        onOpenPlayer = { showPlayerOverlay = true }
                     )
 
                     3 -> MoreScreen(
@@ -209,20 +222,60 @@ fun UnionMusicApp(
             }
         }
 
-        if (showPlayerSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showPlayerSheet = false },
-                sheetState = sheetState
+        if (expandProgress > 0f) {
+            val bounds = miniPlayerBounds
+            val screenWidth = with(density) { LocalContext.current.resources.displayMetrics.widthPixels.toFloat() }
+            val screenHeight = with(density) { LocalContext.current.resources.displayMetrics.heightPixels.toFloat() }
+
+            val startWidth = bounds?.width ?: screenWidth
+            val startHeight = bounds?.height ?: screenHeight
+            val startX = bounds?.left ?: 0f
+            val startY = bounds?.top ?: 0f
+
+            val width = startWidth + (screenWidth - startWidth) * expandProgress
+            val height = startHeight + (screenHeight - startHeight) * expandProgress
+            val x = startX + (0f - startX) * expandProgress
+            val y = startY + (0f - startY) * expandProgress + dragOffsetY
+
+            val widthDp = with(density) { width.toDp() }
+            val heightDp = with(density) { height.toDp() }
+
+            BackHandler(enabled = showPlayerOverlay) {
+                showPlayerOverlay = false
+                dragOffsetY = 0f
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x.toInt(), y.toInt()) }
+                    .size(widthDp, heightDp)
+                    .pointerInput(showPlayerOverlay) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { _, dragAmount ->
+                                if (showPlayerOverlay) {
+                                    dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                }
+                            },
+                            onDragEnd = {
+                                if (dragOffsetY > screenHeight * 0.2f) {
+                                    showPlayerOverlay = false
+                                }
+                                dragOffsetY = 0f
+                            }
+                        )
+                    }
             ) {
                 FullPlayerSheetContent(
                     musicPlayer = musicPlayer,
                     onCollapse = {
-                        scope.launch {
-                            sheetState.hide()
-                            showPlayerSheet = false
-                        }
+                        showPlayerOverlay = false
+                        dragOffsetY = 0f
                     },
                     modifier = Modifier
+                        .offset { IntOffset(0, 0) }
+                        .fillMaxSize(),
+                    expandProgress = expandProgress,
+                    collapseDragOffsetY = dragOffsetY
                 )
             }
         }

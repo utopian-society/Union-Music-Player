@@ -141,6 +141,8 @@ class MainActivity : AppCompatActivity() {
                     artist = "Artist 1",
                     album = "Sample Album",
                     duration = 180000, // 3分钟
+                    bitDepth = null,
+                    sampleRateHz = null,
                     filePath = "",
                     format = AudioFormat.MP3
                 ),
@@ -150,6 +152,8 @@ class MainActivity : AppCompatActivity() {
                     artist = "Artist 2",
                     album = "Sample Album",
                     duration = 240000, // 4分钟
+                    bitDepth = null,
+                    sampleRateHz = null,
                     filePath = "",
                     format = AudioFormat.MP3
                 )

@@ -61,6 +61,8 @@ fun LibraryScreen(
                     artist = "Artist 1",
                     album = "Sample Album",
                     duration = 180000,
+                    bitDepth = null,
+                    sampleRateHz = null,
                     filePath = "",
                     format = AudioFormat.MP3
                 ),
@@ -70,6 +72,8 @@ fun LibraryScreen(
                     artist = "Artist 2",
                     album = "Sample Album",
                     duration = 240000,
+                    bitDepth = null,
+                    sampleRateHz = null,
                     filePath = "",
                     format = AudioFormat.MP3
                 )

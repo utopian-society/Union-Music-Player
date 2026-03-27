@@ -18,6 +18,8 @@ import org.json.JSONObject
  * @property artist 艺术家
  * @property album 专辑名称
  * @property duration 时长（毫秒）
+ * @property bitDepth 音频位深（bit depth）
+ * @property sampleRateHz 采样率（Hz）
  * @property filePath 文件路径
  * @property uri 文件URI
  * @property albumArt 专辑封面图片
@@ -28,22 +30,24 @@ import org.json.JSONObject
  * @property trackNumber 曲目编号
  * @property format 音频格式（MP3, FLAC, ALAC等）
  */
-data class MusicMetadata(
-    val id: Long = 0,
-    val title: String = "",
-    val artist: String = "Unknown Artist",
-    val album: String = "Unknown Album",
-    val duration: Long = 0,
-    val filePath: String = "",
-    val uri: Uri = Uri.EMPTY,
-    val albumArt: Bitmap? = null,
-    val albumArtPath: String? = null,
-    val relativePath: String? = null,
-    val genre: String? = null,
-    val year: Int? = null,
-    val trackNumber: Int? = null,
-    val format: AudioFormat = AudioFormat.MP3
-) {
+ data class MusicMetadata(
+     val id: Long = 0,
+     val title: String = "",
+     val artist: String = "Unknown Artist",
+     val album: String = "Unknown Album",
+     val duration: Long = 0,
+     val bitDepth: Int? = null,
+     val sampleRateHz: Int? = null,
+     val filePath: String = "",
+     val uri: Uri = Uri.EMPTY,
+     val albumArt: Bitmap? = null,
+     val albumArtPath: String? = null,
+     val relativePath: String? = null,
+     val genre: String? = null,
+     val year: Int? = null,
+     val trackNumber: Int? = null,
+     val format: AudioFormat = AudioFormat.MP3
+ ) {
     /**
      * 将音乐元数据转换为JSON对象
      * 注意：albumArt (Bitmap) 不被序列化，因为Bitmap无法直接JSON化
@@ -55,6 +59,8 @@ data class MusicMetadata(
             put("artist", artist)
             put("album", album)
             put("duration", duration)
+            put("bitDepth", bitDepth)
+            put("sampleRateHz", sampleRateHz)
             put("filePath", filePath)
             put("uri", uri.toString())
             put("albumArtPath", albumArtPath)
@@ -77,6 +83,8 @@ data class MusicMetadata(
                 artist = json.optString("artist", "Unknown Artist"),
                 album = json.optString("album", "Unknown Album"),
                 duration = json.optLong("duration", 0),
+                bitDepth = json.optInt("bitDepth", 0).takeIf { it > 0 },
+                sampleRateHz = json.optInt("sampleRateHz", 0).takeIf { it > 0 },
                 filePath = json.optString("filePath", ""),
                 uri = Uri.parse(json.optString("uri", "")),
                 albumArtPath = json.optString("albumArtPath").takeIf { it.isNotEmpty() },

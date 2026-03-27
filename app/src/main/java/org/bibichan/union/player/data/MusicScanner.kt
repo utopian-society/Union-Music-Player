@@ -202,6 +202,12 @@ class MusicScanner(private val context: Context) {
             val trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)?.toIntOrNull()
 
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val bitDepth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
+            val sampleRateHz = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
 
             val savedAlbumArt = retriever.embeddedPicture?.let { bytes ->
                 val key = AlbumArtCache.keyFrom(file.absolutePath)
@@ -216,6 +222,8 @@ class MusicScanner(private val context: Context) {
                 artist = artist,
                 album = album,
                 duration = duration,
+                bitDepth = bitDepth,
+                sampleRateHz = sampleRateHz,
                 filePath = file.absolutePath,
                 uri = Uri.fromFile(file),
                 albumArt = savedAlbumArt?.bitmap,
@@ -241,6 +249,8 @@ class MusicScanner(private val context: Context) {
             artist = "Unknown Artist",
             album = "Unknown Album",
             duration = 0,
+            bitDepth = null,
+            sampleRateHz = null,
             filePath = file.absolutePath,
             uri = Uri.fromFile(file),
             format = format
@@ -704,6 +714,12 @@ class MusicScanner(private val context: Context) {
             val year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)?.toIntOrNull()
             val trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)?.toIntOrNull()
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val bitDepth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
+            val sampleRateHz = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
 
             val savedAlbumArt = retriever.embeddedPicture?.let { bytes ->
                 val key = AlbumArtCache.keyFrom(documentFile.uri.toString())
@@ -719,6 +735,8 @@ class MusicScanner(private val context: Context) {
                 artist = artist,
                 album = album,
                 duration = duration,
+                bitDepth = bitDepth,
+                sampleRateHz = sampleRateHz,
                 filePath = filePath,
                 uri = documentFile.uri,
                 albumArt = savedAlbumArt?.bitmap,
