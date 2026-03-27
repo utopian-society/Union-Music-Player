@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.QueueMusic
@@ -44,6 +46,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -125,7 +128,12 @@ fun UnionMusicApp(
             Column {
                 FloatingPlayer(
                     musicPlayer = musicPlayer,
-                    onExpand = { showPlayerOverlay = true },
+                    onExpand = {
+                        if (!showPlayerOverlay) {
+                            showPlayerOverlay = true
+                        }
+                    },
+                    modifier = Modifier.alpha(1f - expandProgress),
                     onBoundsChanged = { bounds -> miniPlayerBounds = bounds }
                 )
                 BottomControlPanel(
@@ -222,23 +230,31 @@ fun UnionMusicApp(
             }
         }
 
-        if (expandProgress > 0f) {
+        if (expandProgress > 0f && miniPlayerBounds != null) {
             val bounds = miniPlayerBounds
             val screenWidth = with(density) { LocalContext.current.resources.displayMetrics.widthPixels.toFloat() }
             val screenHeight = with(density) { LocalContext.current.resources.displayMetrics.heightPixels.toFloat() }
+            val insetPx = with(density) { 16.dp.toPx() }
 
-            val startWidth = bounds?.width ?: screenWidth
-            val startHeight = bounds?.height ?: screenHeight
-            val startX = bounds?.left ?: 0f
-            val startY = bounds?.top ?: 0f
+            val targetWidth = (screenWidth - insetPx * 2f).coerceAtLeast(0f)
+            val targetHeight = (screenHeight - insetPx * 2f).coerceAtLeast(0f)
+            val targetX = insetPx
+            val targetTop = insetPx
 
-            val width = startWidth + (screenWidth - startWidth) * expandProgress
-            val height = startHeight + (screenHeight - startHeight) * expandProgress
-            val x = startX + (0f - startX) * expandProgress
-            val y = startY + (0f - startY) * expandProgress + dragOffsetY
+            val startWidth = bounds?.width ?: targetWidth
+            val startHeight = bounds?.height ?: targetHeight
+            val startX = bounds?.left ?: targetX
+            val startTop = bounds?.top ?: targetTop
+
+            val width = startWidth + (targetWidth - startWidth) * expandProgress
+            val height = startHeight + (targetHeight - startHeight) * expandProgress
+            val x = startX + (targetX - startX) * expandProgress
+            val y = startTop + (targetTop - startTop) * expandProgress + dragOffsetY
 
             val widthDp = with(density) { width.toDp() }
             val heightDp = with(density) { height.toDp() }
+            val cornerRadius = androidx.compose.ui.unit.lerp(20.dp, 32.dp, expandProgress)
+            val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
 
             BackHandler(enabled = showPlayerOverlay) {
                 showPlayerOverlay = false
@@ -249,6 +265,8 @@ fun UnionMusicApp(
                 modifier = Modifier
                     .offset { IntOffset(x.toInt(), y.toInt()) }
                     .size(widthDp, heightDp)
+                    .clip(shape)
+                    .shadow(12.dp, shape, clip = false)
                     .pointerInput(showPlayerOverlay) {
                         detectVerticalDragGestures(
                             onVerticalDrag = { _, dragAmount ->
@@ -275,7 +293,7 @@ fun UnionMusicApp(
                         .offset { IntOffset(0, 0) }
                         .fillMaxSize(),
                     expandProgress = expandProgress,
-                    collapseDragOffsetY = dragOffsetY
+                    collapseDragOffsetY = 0f
                 )
             }
         }
