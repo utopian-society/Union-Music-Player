@@ -63,6 +63,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -433,6 +435,9 @@ private fun AlbumArtBackdrop(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             renderEffect = android.graphics.RenderEffect
                                 .createBlurEffect(blurStrength, blurStrength, android.graphics.Shader.TileMode.CLAMP)
+                                .asComposeRenderEffect()
+                        } else {
+                            renderEffect = null
                         }
                     },
                 contentScale = ContentScale.Crop
