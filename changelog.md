@@ -1,3 +1,4 @@
 - 2026-03-28: Added shuffle/repeat playback state and logic in MusicPlayer, including repeat-off end behavior, shuffle order tracking, and repeat cycling.
 - 2026-03-28: Added modular player UI (mini/full) with new PlayerViewModel, pager, lyrics sync, and bottom-sheet integration to match Apple Music-like guide.
 - 2026-03-28: Updated mini/full player surfaces with haze glass styling and migrated sheet content to PlayerScreen.
+- 2026-03-28: Fixed PlayerViewModel type inference in UnionMusicApp viewModel factory call to satisfy Kotlin generic resolution.

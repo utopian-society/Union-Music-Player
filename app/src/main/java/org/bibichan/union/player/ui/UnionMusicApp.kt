@@ -91,7 +91,9 @@ fun UnionMusicApp(
     val libraryViewModel: LibraryViewModel = viewModel()
     val albums by libraryViewModel.albums.collectAsState()
 
-    val playerViewModel = viewModel(factory = PlayerViewModelFactory(musicPlayer))
+    val playerViewModel: PlayerViewModel = viewModel(
+        factory = PlayerViewModelFactory(musicPlayer)
+    )
 
     val hazeState = rememberHazeState()
 
