@@ -61,6 +61,7 @@ import org.bibichan.union.player.ui.library.LibraryScreen
 import org.bibichan.union.player.ui.library.LibraryViewModel
 import org.bibichan.union.player.ui.library.data.Album
 import org.bibichan.union.player.ui.player.PlayerScreen
+import org.bibichan.union.player.ui.player.PlayerViewModel
 import org.bibichan.union.player.ui.player.PlayerViewModelFactory
 import org.bibichan.union.player.ui.screens.AlbumDetailScreen
 import org.bibichan.union.player.ui.screens.FilesScreen
