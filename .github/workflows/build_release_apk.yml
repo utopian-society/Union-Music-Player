@@ -42,12 +42,12 @@ jobs:
 
     - name: Install required SDK components
       run: |
-        sdkmanager --install "platforms;android-35" \
+        sdkmanager --install "platforms;android-36" \
           "build-tools;35.0.0" \
           "platform-tools" \
           "cmdline-tools;latest" \
           "ndk;26.1.10909125" \
-          "cmake;3.22.1"
+          "cmake;3.22.1" 
         yes | sdkmanager --licenses
 
     - name: Grant execute permission for gradlew
@@ -91,31 +91,28 @@ jobs:
         mkdir -p debug
         cp app/build/outputs/apk/debug/app-debug.apk debug/UnionMusicPlayer-v${{ inputs.version }}-debug.apk
 
-    # Release notes + GitHub Release steps remain the same
-    - name: Generate release notes
+    # Changelog + GitHub Release steps
+    - name: Prepare changelog for release
       if: ${{ inputs.build_type == 'release' }}
-      id: release_notes
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      id: release_meta
       run: |
         TAG_NAME="v${{ inputs.version }}"
-        RELEASE_NOTES=$(gh api -X POST /repos/${{ github.repository }}/releases/generate-notes \
-          -f tag_name="$TAG_NAME" \
-          -f previous_tag_name="" \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2026-03-10" \
-          --jq '.body')
-        echo "$RELEASE_NOTES" > release_notes.md
-        echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
+        if [ ! -f changelog.md ]; then
+          echo "ERROR: changelog.md not found at repository root."
+          exit 1
+        fi
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "changelog_file=changelog.md" >> $GITHUB_OUTPUT
+        echo "=== Changelog ==="
+        cat changelog.md
 
     - name: Create GitHub Release
       if: ${{ inputs.build_type == 'release' }}
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.release_notes.outputs.tag_name }}
-        name: Union Music Player ${{ steps.release_notes.outputs.tag_name }}
-        body_path: release_notes.md
+        tag_name: ${{ steps.release_meta.outputs.tag_name }}
+        name: Union Music Player ${{ steps.release_meta.outputs.tag_name }}
+        body_path: ${{ steps.release_meta.outputs.changelog_file }}
         files: |
           release/UnionMusicPlayer-v${{ inputs.version }}-release.apk
         draft: false

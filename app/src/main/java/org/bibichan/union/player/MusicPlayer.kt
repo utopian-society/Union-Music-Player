@@ -19,9 +19,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +60,9 @@ class MusicPlayer(private val context: Context) {
 
     private val _playbackStateFlow = MutableStateFlow(Player.STATE_IDLE)
     val playbackStateFlow: StateFlow<Int> = _playbackStateFlow.asStateFlow()
+
+    private val _lyricsFlow = MutableStateFlow<String?>(null)
+    val lyricsFlow: StateFlow<String?> = _lyricsFlow.asStateFlow()
 
     init {
         initializePlayer()
@@ -129,6 +135,14 @@ class MusicPlayer(private val context: Context) {
                             _lastErrorFlow.value = message
                             playbackListener?.onError(message)
                         }
+
+                        @UnstableApi
+                        override fun onMetadata(metadata: androidx.media3.common.Metadata) {
+                            val lyrics = extractLyrics(metadata)
+                            if (!lyrics.isNullOrBlank()) {
+                                _lyricsFlow.value = lyrics
+                            }
+                        }
                     })
                 }
             Log.d(TAG, "ExoPlayer initialized")
@@ -172,6 +186,7 @@ class MusicPlayer(private val context: Context) {
 
             _currentSongFlow.value = song
             _lastErrorFlow.value = null
+            _lyricsFlow.value = null
 
             val mediaItem = createMediaItem(song)
 
@@ -345,10 +360,50 @@ class MusicPlayer(private val context: Context) {
             _isPlayingFlow.value = false
             _lastErrorFlow.value = null
             _playbackStateFlow.value = Player.STATE_IDLE
+            _lyricsFlow.value = null
             Log.d(TAG, "ExoPlayer released")
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing ExoPlayer", e)
         }
+    }
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private fun extractLyrics(metadata: androidx.media3.common.Metadata): String? {
+        var best: String? = null
+        for (index in 0 until metadata.length()) {
+            val entry = metadata[index]
+            when (entry) {
+                is TextInformationFrame -> {
+                    val id = entry.id.uppercase()
+                    if (id == "USLT" || id == "SYLT" || id == "TXXX" || id == "LYRICS" || id == "©LYR") {
+                        val candidate = entry.values.firstOrNull()
+                        if (!candidate.isNullOrBlank()) {
+                            best = pickLyrics(best, candidate)
+                        }
+                    }
+                }
+                is VorbisComment -> {
+                    val key = entry.key.uppercase()
+                    if (key == "LYRICS" || key == "UNSYNCEDLYRICS" || key == "SYLT" || key == "USLT") {
+                        val candidate = entry.value
+                        if (candidate.isNotBlank()) {
+                            best = pickLyrics(best, candidate)
+                        }
+                    }
+                }
+                else -> {
+                    // Ignore other metadata entries.
+                }
+            }
+        }
+        return best
+    }
+
+    private fun pickLyrics(existing: String?, candidate: String): String {
+        if (existing.isNullOrBlank()) {
+            return candidate
+        }
+        return if (candidate.length > existing.length) candidate else existing
     }
 
     interface PlaybackListener {

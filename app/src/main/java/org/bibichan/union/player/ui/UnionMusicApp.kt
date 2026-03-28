@@ -14,6 +14,7 @@ package org.bibichan.union.player.ui
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,9 +40,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,6 +66,8 @@ import org.bibichan.union.player.ui.screens.AlbumDetailScreen
 import org.bibichan.union.player.ui.screens.FilesScreen
 import org.bibichan.union.player.ui.screens.MoreScreen
 import org.bibichan.union.player.ui.screens.PlaylistManagementScreen
+
+private val BottomBarHeight = 72.dp
 
 private const val TAG = "UnionMusicApp"
 
@@ -84,6 +91,8 @@ fun UnionMusicApp(
     val libraryViewModel: LibraryViewModel = viewModel()
     val albums by libraryViewModel.albums.collectAsState()
 
+    val hazeState = rememberHazeState()
+
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.PartiallyExpanded,
         skipHiddenState = true,
@@ -99,6 +108,8 @@ fun UnionMusicApp(
     )
 
     val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
+    val bottomInsetTarget = if (isSheetExpanded) 0.dp else BottomBarHeight
+    val bottomInset by animateDpAsState(label = "sheetBottomInset", targetValue = bottomInsetTarget)
 
     val navItems = listOf(
         NavItem(
@@ -139,30 +150,36 @@ fun UnionMusicApp(
         }
     ) { outerPadding ->
         BottomSheetScaffold(
+            modifier = Modifier.padding(bottom = bottomInset),
             scaffoldState = scaffoldState,
             sheetPeekHeight = 82.dp,
-            sheetShadowElevation = BottomSheetDefaults.Elevation,
+            sheetShadowElevation = 0.dp,
+            sheetContainerColor = Color.Transparent,
             sheetDragHandle = {
                 if (isSheetExpanded) {
                     BottomSheetDefaults.DragHandle()
                 }
             },
             sheetContent = {
-                Column {
-                    FloatingPlayer(
-                        musicPlayer = musicPlayer,
-                        onExpand = {
-                            scope.launch { sheetState.expand() }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
+                Column(modifier = Modifier.hazeSource(state = hazeState)) {
+                    if (!isSheetExpanded) {
+                        FloatingPlayer(
+                            musicPlayer = musicPlayer,
+                            onExpand = {
+                                scope.launch { sheetState.expand() }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            hazeState = hazeState
+                        )
+                    }
 
                     FullPlayerSheetContent(
                         musicPlayer = musicPlayer,
                         modifier = Modifier
                             .fillMaxWidth(),
-                        isExpanded = isSheetExpanded
+                        isExpanded = isSheetExpanded,
+                        hazeState = hazeState
                     )
                 }
             }

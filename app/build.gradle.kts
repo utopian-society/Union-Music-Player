@@ -20,7 +20,7 @@ plugins {
 
 android {
     namespace = "org.bibichan.union.player"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "org.bibichan.union.player"
@@ -117,6 +117,10 @@ dependencies {
 
     // Coil 图片加载 (2.7.0 是当前稳定版)
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Haze - 玻璃模糊效果 (Apple Music 风格)
+    implementation("dev.chrisbanes.haze:haze-android:1.7.2")
+    implementation("dev.chrisbanes.haze:haze-materials-android:1.7.2")
 
     // // Media3 ExoPlayer - 支持多种音频格式（ALAC 需 FFmpeg 扩展）
     // // 同时用于音频元数据提取（替代 jaudiotagger）

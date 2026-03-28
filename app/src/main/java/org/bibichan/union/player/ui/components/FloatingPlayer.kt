@@ -1,3 +1,8 @@
+@file:OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi::class
+)
+
 /**
  * FloatingPlayer.kt - 浮动播放器组件
  *
@@ -12,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -20,6 +26,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -54,6 +65,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,19 +73,23 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicMetadata
 
@@ -81,7 +97,8 @@ import org.bibichan.union.player.data.MusicMetadata
 fun FloatingPlayer(
     musicPlayer: MusicPlayer,
     onExpand: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hazeState: HazeState
 ) {
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
@@ -90,13 +107,16 @@ fun FloatingPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(MaterialTheme.shapes.large)
+            .hazeEffect(state = hazeState, style = HazeMaterials.ultraThin())
+            .background(Color.White.copy(alpha = 0.08f))
             .clickable { onExpand() },
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.Transparent
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp
+            defaultElevation = 0.dp
         )
     ) {
         MiniPlayerContent(
@@ -113,6 +133,10 @@ private fun MiniPlayerContent(
     isPlaying: Boolean,
     musicPlayer: MusicPlayer
 ) {
+    val albumArtModel = remember(currentSong?.albumArtPath, currentSong?.albumArt) {
+        resolveAlbumArt(currentSong)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -120,16 +144,28 @@ private fun MiniPlayerContent(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            modifier = Modifier.size(40.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.primaryContainer
+            modifier = Modifier.size(44.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = "Album Cover",
-                modifier = Modifier.padding(8.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            if (albumArtModel != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(albumArtModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Album Cover",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = "Album Cover",
+                    modifier = Modifier.padding(8.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Spacer(modifier = Modifier.size(10.dp))
@@ -162,6 +198,11 @@ private fun MiniPlayerContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            MiniPlayerProgress(
+                musicPlayer = musicPlayer,
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
 
         AppleControlRow(
@@ -180,10 +221,264 @@ private fun MiniPlayerContent(
 }
 
 @Composable
+private fun AlbumArtPage(
+    albumArtModel: Any?,
+    albumTitle: String,
+    songTitle: String,
+    artistName: String,
+    statusText: String?
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
+
+        AlbumArtCard(
+            albumArtModel = albumArtModel,
+            modifier = Modifier
+                .fillMaxWidth(0.78f)
+                .aspectRatio(1f)
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = albumTitle,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontStyle = FontStyle.Italic,
+                fontWeight = FontWeight.Medium
+            ),
+            color = TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = songTitle,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = TextPrimary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = artistName,
+            style = MaterialTheme.typography.titleMedium,
+            color = TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (!statusText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted
+            )
+        }
+    }
+}
+
+@Composable
+private fun LyricsPage(
+    lyricsText: String?,
+    positionMs: Long
+) {
+    val parsed = remember(lyricsText) { parseLyrics(lyricsText) }
+    val lines = parsed.lines
+    val timed = parsed.timed
+
+    val listState = rememberLazyListState()
+    var allowAutoScroll by remember { mutableStateOf(true) }
+    var lastUserScrollMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collectLatest { isScrolling ->
+                if (isScrolling) {
+                    allowAutoScroll = false
+                    lastUserScrollMs = System.currentTimeMillis()
+                } else if (!allowAutoScroll) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastUserScrollMs > ManualScrollCooldownMs) {
+                        allowAutoScroll = true
+                    }
+                }
+            }
+    }
+
+    val activeIndex = if (timed) {
+        findActiveLyricIndex(lines, positionMs)
+    } else {
+        -1
+    }
+
+    LaunchedEffect(activeIndex, allowAutoScroll) {
+        if (allowAutoScroll && activeIndex >= 0) {
+            listState.animateScrollToItem(activeIndex.coerceAtLeast(0))
+        }
+    }
+
+    if (lines.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Lyrics unavailable",
+                style = MaterialTheme.typography.titleMedium,
+                color = LyricsEmpty
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 18.dp),
+        state = listState
+    ) {
+        itemsIndexed(lines) { index, line ->
+            val isActive = index == activeIndex
+            val color = if (isActive) LyricsActive else LyricsInactive
+            val weight = if (isActive) FontWeight.Bold else FontWeight.Medium
+
+            Text(
+                text = line.text,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = weight),
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp)
+            )
+        }
+    }
+}
+
+private data class ParsedLyrics(
+    val lines: List<LyricLine>,
+    val timed: Boolean
+)
+
+private data class LyricLine(
+    val timeMs: Long?,
+    val text: String
+)
+
+private fun parseLyrics(raw: String?): ParsedLyrics {
+    if (raw.isNullOrBlank()) {
+        return ParsedLyrics(emptyList(), timed = false)
+    }
+
+    val trimmed = raw.trim()
+    val timeRegex = Regex("\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,2}))?\\]")
+    val lines = mutableListOf<LyricLine>()
+    var hasTimed = false
+
+    trimmed.lineSequence().forEach { line ->
+        val matches = timeRegex.findAll(line).toList()
+        if (matches.isEmpty()) {
+            val text = line.trim()
+            if (text.isNotBlank()) {
+                lines.add(LyricLine(timeMs = null, text = text))
+            }
+        } else {
+            hasTimed = true
+            val text = line.replace(timeRegex, "").trim()
+            val lyricText = if (text.isNotBlank()) text else "..."
+            matches.forEach { match ->
+                val minutes = match.groupValues[1].toLongOrNull() ?: 0L
+                val seconds = match.groupValues[2].toLongOrNull() ?: 0L
+                val fraction = match.groupValues.getOrNull(3)?.padEnd(2, '0')?.toLongOrNull() ?: 0L
+                val timeMs = (minutes * 60 + seconds) * 1000 + (fraction * 10)
+                lines.add(LyricLine(timeMs = timeMs, text = lyricText))
+            }
+        }
+    }
+
+    val sortedLines = if (hasTimed) {
+        lines.sortedBy { it.timeMs ?: Long.MAX_VALUE }
+    } else {
+        lines
+    }
+
+    return ParsedLyrics(sortedLines, timed = hasTimed)
+}
+
+private fun findActiveLyricIndex(lines: List<LyricLine>, positionMs: Long): Int {
+    if (lines.isEmpty()) {
+        return -1
+    }
+    var result = -1
+    for (index in lines.indices) {
+        val time = lines[index].timeMs ?: continue
+        if (positionMs >= time) {
+            result = index
+        } else {
+            break
+        }
+    }
+    return result
+}
+
+private const val ManualScrollCooldownMs = 2000L
+
+@Composable
+private fun MiniPlayerProgress(
+    musicPlayer: MusicPlayer,
+    modifier: Modifier = Modifier
+) {
+    var positionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(musicPlayer) {
+        while (true) {
+            positionMs = musicPlayer.getCurrentPosition()
+            durationMs = musicPlayer.getDuration().coerceAtLeast(0L)
+            delay(1000)
+        }
+    }
+
+    val progress = if (durationMs > 0) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(2.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.15f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress)
+                .fillMaxSize()
+                .background(Color.White.copy(alpha = 0.6f))
+        )
+    }
+}
+
+@Composable
 fun FullPlayerSheetContent(
     musicPlayer: MusicPlayer,
     modifier: Modifier = Modifier,
-    isExpanded: Boolean = true
+    isExpanded: Boolean = true,
+    hazeState: HazeState
 ) {
     if (!isExpanded) {
         return
@@ -192,6 +487,7 @@ fun FullPlayerSheetContent(
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
     val playbackState by musicPlayer.playbackStateFlow.collectAsState()
     val lastError by musicPlayer.lastErrorFlow.collectAsState()
+    val lyricsText by musicPlayer.lyricsFlow.collectAsState()
 
     var positionMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
@@ -214,7 +510,7 @@ fun FullPlayerSheetContent(
                     0f
                 }
             }
-            delay(750)
+            delay(500)
         }
     }
 
@@ -235,6 +531,7 @@ fun FullPlayerSheetContent(
     }
 
     val blurStrength = if (isExpanded) 12f else 4f
+    val pagerState = rememberPagerState { 2 }
 
     Box(
         modifier = modifier
@@ -250,88 +547,39 @@ fun FullPlayerSheetContent(
                 .padding(horizontal = 24.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            AlbumArtCard(
-                albumArtModel = albumArtModel,
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .aspectRatio(1f)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(28.dp))
+                    .hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .padding(vertical = 16.dp, horizontal = 12.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = albumTitle,
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontStyle = FontStyle.Italic,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = songTitle,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = TextPrimary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = artistName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (!statusText.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
+                HorizontalPager(
+                    state = pagerState,
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        0 -> AlbumArtPage(
+                            albumArtModel = albumArtModel,
+                            albumTitle = albumTitle,
+                            songTitle = songTitle,
+                            artistName = artistName,
+                            statusText = statusText
                         )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    IconButton(onClick = { }) {
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = TextSecondary
-                        )
-                    }
-                    IconButton(onClick = { }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
-                            tint = TextSecondary
+                        else -> LyricsPage(
+                            lyricsText = lyricsText,
+                            positionMs = positionMs
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Slider(
                 value = sliderPosition,
@@ -377,22 +625,30 @@ fun FullPlayerSheetContent(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Spacer(modifier = Modifier.weight(1f))
 
-            PlaybackControlsRow(
-                isPlaying = isPlaying,
-                onPrevious = { musicPlayer.previous() },
-                onPlayPause = {
-                    if (musicPlayer.isPlaying()) {
-                        musicPlayer.pause()
-                    } else {
-                        musicPlayer.resume()
-                    }
-                },
-                onNext = { musicPlayer.next() }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(28.dp))
+                    .hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .padding(vertical = 18.dp)
+            ) {
+                PlaybackControlsRow(
+                    isPlaying = isPlaying,
+                    onPrevious = { musicPlayer.previous() },
+                    onPlayPause = {
+                        if (musicPlayer.isPlaying()) {
+                            musicPlayer.pause()
+                        } else {
+                            musicPlayer.resume()
+                        }
+                    },
+                    onNext = { musicPlayer.next() }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             SecondaryControlsRow(
                 onVolume = { },
@@ -702,3 +958,6 @@ private val SliderInactive = Color(0xFF23354F)
 private val TextPrimary = Color(0xFFFFFFFF)
 private val TextSecondary = Color(0xFFE0E0E0)
 private val TextMuted = Color(0xFF888888)
+private val LyricsActive = Color(0xFFF7F3EE)
+private val LyricsInactive = Color(0x99FFFFFF)
+private val LyricsEmpty = Color(0xCCFFFFFF)
