@@ -8,45 +8,38 @@
  * 2026-03-22: 新增 Files 標籤頁
  * 2026-03-24: 使用 StateFlow 驅動浮動播放器可見性
  * 2026-03-24: 浮動播放器常駐
+ * 2026-03-28: 使用 BottomSheetScaffold 替代自定义浮动层
  */
 package org.bibichan.union.player.ui
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
@@ -85,14 +78,27 @@ fun UnionMusicApp(
     var selectedTab by remember { mutableStateOf(0) }
     var selectedAlbum by remember { mutableStateOf<Album?>(null) }
     var importedPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    var showPlayerOverlay by remember { mutableStateOf(false) }
-    var miniPlayerBounds by remember { mutableStateOf<Rect?>(null) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
     val musicScanner = remember { MusicScanner(context) }
 
     val libraryViewModel: LibraryViewModel = viewModel()
     val albums by libraryViewModel.albums.collectAsState()
+
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = SheetValue.PartiallyExpanded,
+        skipHiddenState = true,
+        confirmValueChange = { targetValue ->
+            if (targetValue == SheetValue.Hidden) {
+                return@rememberStandardBottomSheetState false
+            }
+            true
+        }
+    )
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = sheetState
+    )
+
+    val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
 
     val navItems = listOf(
         NavItem(
@@ -117,185 +123,134 @@ fun UnionMusicApp(
         )
     )
 
-    val density = LocalDensity.current
-    val expandProgress by animateFloatAsState(
-        targetValue = if (showPlayerOverlay) 1f else 0f,
-        animationSpec = tween(durationMillis = 420),
-        label = "playerExpand"
-    )
+    BackHandler(enabled = isSheetExpanded) {
+        scope.launch { sheetState.partialExpand() }
+    }
 
     Scaffold(
         bottomBar = {
-            Column {
-                FloatingPlayer(
-                    musicPlayer = musicPlayer,
-                    onExpand = {
-                        if (!showPlayerOverlay) {
-                            showPlayerOverlay = true
-                        }
-                    },
-                    modifier = Modifier.alpha(1f - expandProgress),
-                    onBoundsChanged = { bounds -> miniPlayerBounds = bounds }
-                )
+            if (!isSheetExpanded) {
                 BottomControlPanel(
                     items = navItems,
                     selectedIndex = selectedTab,
                     onItemSelected = { index -> selectedTab = index }
                 )
             }
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                selectedAlbum != null -> {
-                    AlbumDetailScreen(
-                        album = selectedAlbum!!,
-                        onSongClick = { _, playlist, index ->
-                            playSongList(musicPlayer, playlist, index)
-                            showPlayerOverlay = true
-                        },
-                        onBack = {
-                            selectedAlbum = null
-                        }
-                    )
-                }
-
-                else -> when (selectedTab) {
-                    0 -> LibraryScreen(
-                        musicPlayer = musicPlayer,
-                        onAlbumClick = { albumId ->
-                            selectedAlbum = albums.firstOrNull { it.id == albumId }
-                        },
-                        onRequestPermission = onRequestPermission,
-                        onPermissionResult = onPermissionResult
-                    )
-
-                    1 -> PlaylistManagementScreen(
-                        playlists = importedPlaylists,
-                        onImportPlaylist = { uri ->
-                            LogManager.i(TAG, "=== PLAYLIST IMPORT STARTED ===")
-                            LogManager.i(TAG, "URI: $uri")
-                            LogManager.i(TAG, "URI scheme: ${uri.scheme}")
-                            LogManager.i(TAG, "URI path: ${uri.path}")
-                            scope.launch {
-                                importPlaylist(
-                                    musicScanner = musicScanner,
-                                    uri = uri,
-                                    existingPlaylists = importedPlaylists,
-                                    onResult = { playlist ->
-                                        if (playlist != null) {
-                                            importedPlaylists = importedPlaylists + playlist
-                                            LogManager.i(TAG, "=== PLAYLIST IMPORT SUCCESS ===")
-                                            LogManager.i(TAG, "Playlist: ${playlist.name}")
-                                            LogManager.i(TAG, "Songs: ${playlist.songs.size}")
-                                            playlist.songs.forEachIndexed { index, song ->
-                                                LogManager.d(TAG, " Song $index: ${song.title} - ${song.artist}")
-                                            }
-                                        } else {
-                                            LogManager.e(TAG, "=== PLAYLIST IMPORT FAILED ===")
-                                        }
-                                    }
-                                )
-                            }
-                        },
-                        onPlaylistClick = { playlist ->
-                            if (playlist.songs.isNotEmpty()) {
-                                LogManager.i(TAG, "Playing playlist: ${playlist.name} with ${playlist.songs.size} songs")
-                                playSongList(musicPlayer, playlist.songs, 0)
-                                showPlayerOverlay = true
-                            }
-                        },
-                        onPlaylistDelete = { playlist ->
-                            LogManager.i(TAG, "Deleting playlist: ${playlist.name}")
-                            importedPlaylists = importedPlaylists.filter { it.id != playlist.id }
-                        }
-                    )
-
-                    2 -> FilesScreen(
-                        musicPlayer = musicPlayer,
-                        onFolderPickerRequest = onFolderPickerRequest,
-                        onOpenPlayer = { showPlayerOverlay = true }
-                    )
-
-                    3 -> MoreScreen(
-                        onRequestPermission = onRequestPermission,
-                        onPermissionResult = onPermissionResult,
-                        onFolderPickerRequest = onFolderPickerRequest
-                    )
-                }
-            }
         }
+    ) { outerPadding ->
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = 82.dp,
+            sheetShadowElevation = BottomSheetDefaults.Elevation,
+            sheetDragHandle = {
+                if (isSheetExpanded) {
+                    BottomSheetDefaults.DragHandle()
+                }
+            },
+            sheetContent = {
+                Column {
+                    FloatingPlayer(
+                        musicPlayer = musicPlayer,
+                        onExpand = {
+                            scope.launch { sheetState.expand() }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    )
 
-        if (expandProgress > 0f && miniPlayerBounds != null) {
-            val bounds = miniPlayerBounds
-            val screenWidth = with(density) { LocalContext.current.resources.displayMetrics.widthPixels.toFloat() }
-            val screenHeight = with(density) { LocalContext.current.resources.displayMetrics.heightPixels.toFloat() }
-            val insetPx = with(density) { 16.dp.toPx() }
-
-            val targetWidth = (screenWidth - insetPx * 2f).coerceAtLeast(0f)
-            val targetHeight = (screenHeight - insetPx * 2f).coerceAtLeast(0f)
-            val targetX = insetPx
-            val targetTop = insetPx
-
-            val startWidth = bounds?.width ?: targetWidth
-            val startHeight = bounds?.height ?: targetHeight
-            val startX = bounds?.left ?: targetX
-            val startTop = bounds?.top ?: targetTop
-
-            val width = startWidth + (targetWidth - startWidth) * expandProgress
-            val height = startHeight + (targetHeight - startHeight) * expandProgress
-            val x = startX + (targetX - startX) * expandProgress
-            val y = startTop + (targetTop - startTop) * expandProgress + dragOffsetY
-
-            val widthDp = with(density) { width.toDp() }
-            val heightDp = with(density) { height.toDp() }
-            val cornerRadius = androidx.compose.ui.unit.lerp(20.dp, 32.dp, expandProgress)
-            val shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
-
-            BackHandler(enabled = showPlayerOverlay) {
-                showPlayerOverlay = false
-                dragOffsetY = 0f
+                    FullPlayerSheetContent(
+                        musicPlayer = musicPlayer,
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        isExpanded = isSheetExpanded
+                    )
+                }
             }
-
+        ) { innerPadding ->
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(x.toInt(), y.toInt()) }
-                    .size(widthDp, heightDp)
-                    .clip(shape)
-                    .shadow(12.dp, shape, clip = false)
-                    .pointerInput(showPlayerOverlay) {
-                        detectVerticalDragGestures(
-                            onVerticalDrag = { _, dragAmount ->
-                                if (showPlayerOverlay) {
-                                    dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                                }
+                    .fillMaxSize()
+                    .padding(outerPadding)
+                    .padding(innerPadding)
+            ) {
+                when {
+                    selectedAlbum != null -> {
+                        AlbumDetailScreen(
+                            album = selectedAlbum!!,
+                            onSongClick = { _, playlist, index ->
+                                playSongList(musicPlayer, playlist, index)
+                                scope.launch { sheetState.expand() }
                             },
-                            onDragEnd = {
-                                if (dragOffsetY > screenHeight * 0.2f) {
-                                    showPlayerOverlay = false
-                                }
-                                dragOffsetY = 0f
+                            onBack = {
+                                selectedAlbum = null
                             }
                         )
                     }
-            ) {
-                FullPlayerSheetContent(
-                    musicPlayer = musicPlayer,
-                    onCollapse = {
-                        showPlayerOverlay = false
-                        dragOffsetY = 0f
-                    },
-                    modifier = Modifier
-                        .offset { IntOffset(0, 0) }
-                        .fillMaxSize(),
-                    expandProgress = expandProgress,
-                    collapseDragOffsetY = 0f
-                )
+
+                    else -> when (selectedTab) {
+                        0 -> LibraryScreen(
+                            musicPlayer = musicPlayer,
+                            onAlbumClick = { albumId ->
+                                selectedAlbum = albums.firstOrNull { it.id == albumId }
+                            },
+                            onRequestPermission = onRequestPermission,
+                            onPermissionResult = onPermissionResult
+                        )
+
+                        1 -> PlaylistManagementScreen(
+                            playlists = importedPlaylists,
+                            onImportPlaylist = { uri ->
+                                LogManager.i(TAG, "=== PLAYLIST IMPORT STARTED ===")
+                                LogManager.i(TAG, "URI: $uri")
+                                LogManager.i(TAG, "URI scheme: ${uri.scheme}")
+                                LogManager.i(TAG, "URI path: ${uri.path}")
+                                scope.launch {
+                                    importPlaylist(
+                                        musicScanner = musicScanner,
+                                        uri = uri,
+                                        existingPlaylists = importedPlaylists,
+                                        onResult = { playlist ->
+                                            if (playlist != null) {
+                                                importedPlaylists = importedPlaylists + playlist
+                                                LogManager.i(TAG, "=== PLAYLIST IMPORT SUCCESS ===")
+                                                LogManager.i(TAG, "Playlist: ${playlist.name}")
+                                                LogManager.i(TAG, "Songs: ${playlist.songs.size}")
+                                                playlist.songs.forEachIndexed { index, song ->
+                                                    LogManager.d(TAG, " Song $index: ${song.title} - ${song.artist}")
+                                                }
+                                            } else {
+                                                LogManager.e(TAG, "=== PLAYLIST IMPORT FAILED ===")
+                                            }
+                                        }
+                                    )
+                                }
+                            },
+                            onPlaylistClick = { playlist ->
+                                if (playlist.songs.isNotEmpty()) {
+                                    LogManager.i(TAG, "Playing playlist: ${playlist.name} with ${playlist.songs.size} songs")
+                                    playSongList(musicPlayer, playlist.songs, 0)
+                                    scope.launch { sheetState.expand() }
+                                }
+                            },
+                            onPlaylistDelete = { playlist ->
+                                LogManager.i(TAG, "Deleting playlist: ${playlist.name}")
+                                importedPlaylists = importedPlaylists.filter { it.id != playlist.id }
+                            }
+                        )
+
+                        2 -> FilesScreen(
+                            musicPlayer = musicPlayer,
+                            onFolderPickerRequest = onFolderPickerRequest,
+                            onOpenPlayer = { scope.launch { sheetState.expand() } }
+                        )
+
+                        3 -> MoreScreen(
+                            onRequestPermission = onRequestPermission,
+                            onPermissionResult = onPermissionResult,
+                            onFolderPickerRequest = onFolderPickerRequest
+                        )
+                    }
+                }
             }
         }
     }

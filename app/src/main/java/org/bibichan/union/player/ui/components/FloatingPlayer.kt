@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -59,7 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -67,13 +65,10 @@ import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
@@ -86,8 +81,7 @@ import org.bibichan.union.player.data.MusicMetadata
 fun FloatingPlayer(
     musicPlayer: MusicPlayer,
     onExpand: () -> Unit,
-    modifier: Modifier = Modifier,
-    onBoundsChanged: ((Rect) -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
@@ -96,9 +90,6 @@ fun FloatingPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .onGloballyPositioned { coordinates ->
-                onBoundsChanged?.invoke(coordinates.boundsInRoot())
-            }
             .clickable { onExpand() },
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
@@ -191,11 +182,12 @@ private fun MiniPlayerContent(
 @Composable
 fun FullPlayerSheetContent(
     musicPlayer: MusicPlayer,
-    onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
-    expandProgress: Float = 1f,
-    collapseDragOffsetY: Float = 0f
+    isExpanded: Boolean = true
 ) {
+    if (!isExpanded) {
+        return
+    }
     val currentSong by musicPlayer.currentSongFlow.collectAsState()
     val isPlaying by musicPlayer.isPlayingFlow.collectAsState()
     val playbackState by musicPlayer.playbackStateFlow.collectAsState()
@@ -206,7 +198,10 @@ fun FullPlayerSheetContent(
     var isSeeking by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(musicPlayer) {
+    LaunchedEffect(musicPlayer, isExpanded) {
+        if (!isExpanded) {
+            return@LaunchedEffect
+        }
         while (true) {
             val currentPosition = musicPlayer.getCurrentPosition()
             val duration = musicPlayer.getDuration().coerceAtLeast(0L)
@@ -219,7 +214,7 @@ fun FullPlayerSheetContent(
                     0f
                 }
             }
-            delay(500)
+            delay(750)
         }
     }
 
@@ -239,18 +234,19 @@ fun FullPlayerSheetContent(
         buildQualityLabel(currentSong)
     }
 
+    val blurStrength = if (isExpanded) 12f else 4f
+
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
     ) {
         AlbumArtBackdrop(
             albumArtModel = albumArtModel,
-            expandProgress = expandProgress
+            blurStrength = blurStrength
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, collapseDragOffsetY.toInt()) }
                 .padding(horizontal = 24.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -411,9 +407,8 @@ fun FullPlayerSheetContent(
 @Composable
 private fun AlbumArtBackdrop(
     albumArtModel: Any?,
-    expandProgress: Float
+    blurStrength: Float
 ) {
-    val blurStrength = 6f + (18f * expandProgress.coerceIn(0f, 1f))
 
     Box(
         modifier = Modifier
