@@ -11,12 +11,12 @@ Replace the current morphing overlay with a persistent bottom sheet (peek mini-p
 
 ## Implementation Summary
 - Host sheet in `UnionMusicApp`.
-- Peek state shows mini player header (`FloatingPlayer`).
-- Full player content (`FullPlayerSheetContent`) renders only when expanded.
+- Peek state shows mini player via new `PlayerScreen` + `MiniPlayer`.
+- Full player content is provided by `PlayerScreen` + `FullScreenPlayer` only when expanded.
 - Sheet container is transparent; glass surfaces are drawn within player content.
 
 ## Apple Music-like UI Enhancements
-- True blur for glass surfaces using Haze.
+- True blur for glass surfaces using Haze (Mini/Full surfaces).
 - Mini player shows album art thumbnail + subtle progress bar.
 - Full player uses a 2-page horizontal pager: album art page and lyrics page.
 

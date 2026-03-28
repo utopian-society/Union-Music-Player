@@ -55,13 +55,13 @@ import org.bibichan.union.player.data.MusicMetadata
 import org.bibichan.union.player.data.MusicScanner
 import org.bibichan.union.player.data.Playlist
 import org.bibichan.union.player.ui.components.BottomControlPanel
-import org.bibichan.union.player.ui.components.FloatingPlayer
-import org.bibichan.union.player.ui.components.FullPlayerSheetContent
 import org.bibichan.union.player.ui.components.LogManager
 import org.bibichan.union.player.ui.components.NavItem
 import org.bibichan.union.player.ui.library.LibraryScreen
 import org.bibichan.union.player.ui.library.LibraryViewModel
 import org.bibichan.union.player.ui.library.data.Album
+import org.bibichan.union.player.ui.player.PlayerScreen
+import org.bibichan.union.player.ui.player.PlayerViewModelFactory
 import org.bibichan.union.player.ui.screens.AlbumDetailScreen
 import org.bibichan.union.player.ui.screens.FilesScreen
 import org.bibichan.union.player.ui.screens.MoreScreen
@@ -90,6 +90,8 @@ fun UnionMusicApp(
 
     val libraryViewModel: LibraryViewModel = viewModel()
     val albums by libraryViewModel.albums.collectAsState()
+
+    val playerViewModel = viewModel(factory = PlayerViewModelFactory(musicPlayer))
 
     val hazeState = rememberHazeState()
 
@@ -152,7 +154,7 @@ fun UnionMusicApp(
         BottomSheetScaffold(
             modifier = Modifier.padding(bottom = bottomInset),
             scaffoldState = scaffoldState,
-            sheetPeekHeight = 82.dp,
+            sheetPeekHeight = 72.dp,
             sheetShadowElevation = 0.dp,
             sheetContainerColor = Color.Transparent,
             sheetDragHandle = {
@@ -162,24 +164,13 @@ fun UnionMusicApp(
             },
             sheetContent = {
                 Column(modifier = Modifier.hazeSource(state = hazeState)) {
-                    if (!isSheetExpanded) {
-                        FloatingPlayer(
-                            musicPlayer = musicPlayer,
-                            onExpand = {
-                                scope.launch { sheetState.expand() }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth(),
-                            hazeState = hazeState
-                        )
-                    }
-
-                    FullPlayerSheetContent(
-                        musicPlayer = musicPlayer,
-                        modifier = Modifier
-                            .fillMaxWidth(),
+                    PlayerScreen(
+                        viewModel = playerViewModel,
                         isExpanded = isSheetExpanded,
-                        hazeState = hazeState
+                        onExpand = { scope.launch { sheetState.expand() } },
+                        onCollapse = { scope.launch { sheetState.partialExpand() } },
+                        hazeState = hazeState,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

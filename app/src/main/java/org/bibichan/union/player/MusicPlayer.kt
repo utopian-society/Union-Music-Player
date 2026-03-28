@@ -64,6 +64,21 @@ class MusicPlayer(private val context: Context) {
     private val _lyricsFlow = MutableStateFlow<String?>(null)
     val lyricsFlow: StateFlow<String?> = _lyricsFlow.asStateFlow()
 
+    private val _shuffleEnabledFlow = MutableStateFlow(false)
+    val shuffleEnabledFlow: StateFlow<Boolean> = _shuffleEnabledFlow.asStateFlow()
+
+    private val _repeatModeFlow = MutableStateFlow(RepeatMode.OFF)
+    val repeatModeFlow: StateFlow<RepeatMode> = _repeatModeFlow.asStateFlow()
+
+    private var shuffleOrder: MutableList<Int> = mutableListOf()
+    private var shufflePosition: Int = -1
+
+    enum class RepeatMode {
+        OFF,
+        ALL,
+        ONE
+    }
+
     init {
         initializePlayer()
     }
@@ -109,8 +124,7 @@ class MusicPlayer(private val context: Context) {
                                 }
                                 Player.STATE_ENDED -> {
                                     Log.d(TAG, "Song ended")
-                                    playbackListener?.onSongEnded()
-                                    next()
+                                    handleSongEnded()
                                 }
                                 Player.STATE_BUFFERING -> {
                                     Log.d(TAG, "Buffering...")
@@ -165,9 +179,11 @@ class MusicPlayer(private val context: Context) {
             currentSongIndex = -1
             _currentSongFlow.value = null
             _isPlayingFlow.value = false
+            resetShuffleState()
         } else if (currentSongIndex !in songs.indices) {
             currentSongIndex = -1
             _currentSongFlow.value = null
+            resetShuffleState()
         }
     }
 
@@ -179,6 +195,10 @@ class MusicPlayer(private val context: Context) {
 
         try {
             currentSongIndex = songIndex
+
+            if (_shuffleEnabledFlow.value) {
+                updateShufflePosition(songIndex)
+            }
 
             val song = songs[currentSongIndex]
             Log.d(TAG, "Playing: ${song.title} by ${song.artist}")
@@ -280,7 +300,11 @@ class MusicPlayer(private val context: Context) {
             return
         }
 
-        val nextSongIndex = (currentSongIndex + 1) % songs.size
+        val nextSongIndex = resolveNextIndex(userInitiated = true)
+        if (nextSongIndex == null) {
+            Log.d(TAG, "Reached end of playlist with Repeat OFF")
+            return
+        }
         play(nextSongIndex)
     }
 
@@ -290,10 +314,10 @@ class MusicPlayer(private val context: Context) {
             return
         }
 
-        val previousSongIndex = if (currentSongIndex - 1 < 0) {
-            songs.size - 1
-        } else {
-            currentSongIndex - 1
+        val previousSongIndex = resolvePreviousIndex()
+        if (previousSongIndex == null) {
+            Log.d(TAG, "Reached start of playlist with Repeat OFF")
+            return
         }
         play(previousSongIndex)
     }
@@ -325,6 +349,36 @@ class MusicPlayer(private val context: Context) {
 
     fun getCurrentSongIndex(): Int {
         return currentSongIndex
+    }
+
+    fun toggleShuffle() {
+        setShuffleEnabled(!_shuffleEnabledFlow.value)
+    }
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        if (_shuffleEnabledFlow.value == enabled) {
+            return
+        }
+        _shuffleEnabledFlow.value = enabled
+        if (enabled) {
+            buildShuffleOrder()
+            updateShufflePosition(currentSongIndex)
+        } else {
+            resetShuffleState()
+        }
+    }
+
+    fun cycleRepeatMode() {
+        val nextMode = when (_repeatModeFlow.value) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        setRepeatMode(nextMode)
+    }
+
+    fun setRepeatMode(mode: RepeatMode) {
+        _repeatModeFlow.value = mode
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -361,6 +415,9 @@ class MusicPlayer(private val context: Context) {
             _lastErrorFlow.value = null
             _playbackStateFlow.value = Player.STATE_IDLE
             _lyricsFlow.value = null
+            resetShuffleState()
+            _repeatModeFlow.value = RepeatMode.OFF
+            _shuffleEnabledFlow.value = false
             Log.d(TAG, "ExoPlayer released")
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing ExoPlayer", e)
@@ -404,6 +461,132 @@ class MusicPlayer(private val context: Context) {
             return candidate
         }
         return if (candidate.length > existing.length) candidate else existing
+    }
+
+    private fun handleSongEnded() {
+        playbackListener?.onSongEnded()
+        when (_repeatModeFlow.value) {
+            RepeatMode.ONE -> {
+                if (currentSongIndex >= 0) {
+                    play(currentSongIndex)
+                }
+            }
+            RepeatMode.ALL -> {
+                val nextIndex = resolveNextIndex(userInitiated = false, allowWrap = true)
+                if (nextIndex != null) {
+                    play(nextIndex)
+                }
+            }
+            RepeatMode.OFF -> {
+                val nextIndex = resolveNextIndex(userInitiated = false, allowWrap = false)
+                if (nextIndex != null) {
+                    play(nextIndex)
+                }
+            }
+        }
+    }
+
+    private fun resolveNextIndex(userInitiated: Boolean, allowWrap: Boolean = _repeatModeFlow.value != RepeatMode.OFF): Int? {
+        if (songs.isEmpty()) {
+            return null
+        }
+        if (_shuffleEnabledFlow.value) {
+            if (shuffleOrder.isEmpty()) {
+                buildShuffleOrder()
+            }
+            if (shuffleOrder.isEmpty()) {
+                return null
+            }
+            val nextPosition = shufflePosition + 1
+            return if (nextPosition in shuffleOrder.indices) {
+                shufflePosition = nextPosition
+                shuffleOrder[shufflePosition]
+            } else if (allowWrap) {
+                shufflePosition = 0
+                shuffleOrder[shufflePosition]
+            } else {
+                null
+            }
+        }
+
+        val nextIndex = currentSongIndex + 1
+        return if (nextIndex < songs.size) {
+            nextIndex
+        } else if (allowWrap) {
+            0
+        } else {
+            null
+        }
+    }
+
+    private fun resolvePreviousIndex(): Int? {
+        if (songs.isEmpty()) {
+            return null
+        }
+        if (_shuffleEnabledFlow.value) {
+            if (shuffleOrder.isEmpty()) {
+                buildShuffleOrder()
+            }
+            val previousPosition = shufflePosition - 1
+            return if (previousPosition in shuffleOrder.indices) {
+                shufflePosition = previousPosition
+                shuffleOrder[shufflePosition]
+            } else if (_repeatModeFlow.value == RepeatMode.ALL && shuffleOrder.isNotEmpty()) {
+                shufflePosition = shuffleOrder.lastIndex
+                shuffleOrder[shufflePosition]
+            } else {
+                null
+            }
+        }
+
+        val previousIndex = currentSongIndex - 1
+        return if (previousIndex >= 0) {
+            previousIndex
+        } else if (_repeatModeFlow.value == RepeatMode.ALL) {
+            songs.lastIndex
+        } else {
+            null
+        }
+    }
+
+    private fun buildShuffleOrder() {
+        if (songs.isEmpty()) {
+            shuffleOrder = mutableListOf()
+            shufflePosition = -1
+            return
+        }
+        shuffleOrder = songs.indices.toMutableList().apply { shuffle() }
+        if (shuffleOrder.size > 1 && currentSongIndex in shuffleOrder.indices) {
+            if (shuffleOrder.first() == currentSongIndex) {
+                val swapIndex = shuffleOrder.lastIndex
+                val temp = shuffleOrder[0]
+                shuffleOrder[0] = shuffleOrder[swapIndex]
+                shuffleOrder[swapIndex] = temp
+            }
+        }
+        shufflePosition = shuffleOrder.indexOf(currentSongIndex).coerceAtLeast(0)
+    }
+
+    private fun updateShufflePosition(songIndex: Int) {
+        if (songs.isEmpty()) {
+            shufflePosition = -1
+            return
+        }
+        if (shuffleOrder.isEmpty() || shuffleOrder.size != songs.size) {
+            buildShuffleOrder()
+        }
+        val position = shuffleOrder.indexOf(songIndex)
+        if (position >= 0) {
+            shufflePosition = position
+        } else {
+            shuffleOrder.add(songIndex)
+            shufflePosition = shuffleOrder.lastIndex
+        }
+    }
+
+    private fun resetShuffleState() {
+        shuffleOrder = mutableListOf()
+        shufflePosition = -1
     }
 
     interface PlaybackListener {
