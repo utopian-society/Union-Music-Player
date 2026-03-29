@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -37,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -49,9 +51,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,17 +83,38 @@ fun FullScreenPlayer(
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState { 2 }
+    
+    // 創建動態背景顏色 - 使用專輯主色調
+    val dynamicBackgroundColor = remember(state.dominantColor) {
+        state.dominantColor.copy(alpha = 0.85f)
+    }
+    
+    // 創建模糊背景效果
+    val blurBackgroundColor = remember(state.dominantColor, state.vibrantColor) {
+        val baseColor = state.vibrantColor ?: state.dominantColor
+        baseColor.copy(alpha = 0.3f)
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            // 動態模糊背景
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(
+                        dynamicBackgroundColor,
+                        MaterialTheme.colorScheme.surface,
+                        blurBackgroundColor
+                    )
+                )
+            )
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         TopBar(
             title = state.currentSong?.title ?: "Now Playing",
             subtitle = state.currentSong?.artist ?: "",
-            onCollapse = onCollapse
+            onCollapse = onCollapse,
+            dynamicColor = state.dominantColor
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -133,8 +158,8 @@ fun FullScreenPlayer(
             },
             valueRange = 0f..1f,
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
+                thumbColor = state.dominantColor,
+                activeTrackColor = state.dominantColor,
                 inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
             )
         )
@@ -177,7 +202,8 @@ fun FullScreenPlayer(
 private fun TopBar(
     title: String,
     subtitle: String,
-    onCollapse: () -> Unit
+    onCollapse: () -> Unit,
+    dynamicColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Row(
         modifier = Modifier
@@ -189,7 +215,8 @@ private fun TopBar(
         IconButton(onClick = onCollapse) {
             Icon(
                 imageVector = Icons.Default.ArrowDownward,
-                contentDescription = "Collapse"
+                contentDescription = "Collapse",
+                tint = dynamicColor
             )
         }
         Column(
@@ -231,12 +258,15 @@ private fun PlaybackControls(
     onCycleRepeat: () -> Unit,
     hazeState: HazeState
 ) {
+    // 使用專輯主色調
+    val dynamicColor = state.dominantColor
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
             .hazeEffect(state = hazeState, style = HazeMaterials.thin())
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .background(dynamicColor.copy(alpha = 0.1f))
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -250,7 +280,7 @@ private fun PlaybackControls(
                     imageVector = Icons.Default.Shuffle,
                     contentDescription = "Shuffle",
                     tint = if (state.shuffleEnabled) {
-                        MaterialTheme.colorScheme.primary
+                        dynamicColor
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     }
@@ -263,15 +293,21 @@ private fun PlaybackControls(
                     modifier = Modifier.size(28.dp)
                 )
             }
-            IconButton(
-                onClick = onPlayPause,
-                modifier = Modifier.size(72.dp)
+            // 中心播放按鈕 - 使用動態背景
+            Surface(
+                modifier = Modifier.size(72.dp),
+                shape = CircleShape,
+                color = dynamicColor,
+                onClick = onPlayPause
             ) {
-                Icon(
-                    imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Play",
-                    modifier = Modifier.size(40.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
             IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) {
                 Icon(
@@ -282,8 +318,8 @@ private fun PlaybackControls(
             }
             IconButton(onClick = onCycleRepeat, modifier = Modifier.size(40.dp)) {
                 val (icon, tint) = when (state.repeatMode) {
-                    MusicPlayer.RepeatMode.ONE -> Icons.Default.RepeatOne to MaterialTheme.colorScheme.primary
-                    MusicPlayer.RepeatMode.ALL -> Icons.Default.Repeat to MaterialTheme.colorScheme.primary
+                    MusicPlayer.RepeatMode.ONE -> Icons.Default.RepeatOne to dynamicColor
+                    MusicPlayer.RepeatMode.ALL -> Icons.Default.Repeat to dynamicColor
                     MusicPlayer.RepeatMode.OFF -> Icons.Default.Repeat to MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Icon(

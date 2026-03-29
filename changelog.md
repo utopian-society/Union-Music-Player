@@ -1,3 +1,11 @@
+- 2026-03-28: Refactored player UI with dynamic album color extraction and improved gesture handling.
+- 2026-03-28: Added AlbumColorExtractor utility for extracting dominant colors from album artwork using Palette API.
+- 2026-03-28: Updated PlayerState to include dominantColor, vibrantColor, and darkVibrantColor fields for dynamic theming.
+- 2026-03-28: Updated PlayerViewModel to extract and provide album colors to the UI.
+- 2026-03-28: Refactored MiniPlayer with true glassmorphism effect using HazeMaterials.thin() and dynamic album color border.
+- 2026-03-28: Refactored FullScreenPlayer with dynamic gradient background based on album colors and enhanced playback controls.
+- 2026-03-28: Added Palette KTX dependency for color extraction from album artwork.
+- 2026-03-28: Improved BottomSheet gesture animations with spring-based physics for smoother expand/collapse.
 - 2026-03-28: Added shuffle/repeat playback state and logic in MusicPlayer, including repeat-off end behavior, shuffle order tracking, and repeat cycling.
 - 2026-03-28: Added modular player UI (mini/full) with new PlayerViewModel, pager, lyrics sync, and bottom-sheet integration to match Apple Music-like guide.
 - 2026-03-28: Updated mini/full player surfaces with haze glass styling and migrated sheet content to PlayerScreen.

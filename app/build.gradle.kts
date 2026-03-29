@@ -117,6 +117,9 @@ dependencies {
 
     // Coil 图片加载 (2.7.0 是当前稳定版)
     implementation("io.coil-kt:coil-compose:2.7.0")
+    
+    // Palette - 用于从专辑封面提取主色调
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // Haze - 玻璃模糊效果 (Apple Music 风格)
     implementation("dev.chrisbanes.haze:haze-android:1.7.2")

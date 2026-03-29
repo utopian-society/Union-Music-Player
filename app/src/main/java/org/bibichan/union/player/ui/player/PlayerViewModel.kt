@@ -1,7 +1,10 @@
 package org.bibichan.union.player.ui.player
 
+import android.content.Context
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.ImageLoader
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,15 +14,24 @@ import kotlinx.coroutines.launch
 import org.bibichan.union.player.MusicPlayer
 import org.bibichan.union.player.data.MusicMetadata
 import org.bibichan.union.player.ui.player.models.PlayerState
+import org.bibichan.union.player.ui.player.utils.AlbumColorExtractor
 
 class PlayerViewModel(
-    private val musicPlayer: MusicPlayer
+    private val musicPlayer: MusicPlayer,
+    private val context: Context? = null
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state
 
     private var progressJob: Job? = null
+    
+    // 顏色提取器 - 使用 Context 創建 ImageLoader
+    private val colorExtractor: AlbumColorExtractor? by lazy {
+        context?.let { ctx ->
+            AlbumColorExtractor(ImageLoader(ctx))
+        }
+    }
 
     init {
         observePlayerState()
@@ -68,6 +80,10 @@ class PlayerViewModel(
                 musicPlayer.repeatModeFlow
             ) { song, isPlaying, lyrics, shuffleEnabled, repeatMode ->
                 val (formatLabel, sampleRateHz, bitDepth) = extractAudioInfo(song)
+                
+                // 提取專輯顏色
+                val (dominantColor, vibrantColor, darkVibrantColor) = extractAlbumColors(song)
+                
                 PlayerState(
                     isPlaying = isPlaying,
                     currentSong = song,
@@ -79,7 +95,10 @@ class PlayerViewModel(
                     repeatMode = repeatMode,
                     currentTimeMs = _state.value.currentTimeMs,
                     durationMs = _state.value.durationMs,
-                    progress = _state.value.progress
+                    progress = _state.value.progress,
+                    dominantColor = dominantColor,
+                    vibrantColor = vibrantColor,
+                    darkVibrantColor = darkVibrantColor
                 )
             }.collect { updated ->
                 _state.value = updated
@@ -115,5 +134,29 @@ class PlayerViewModel(
             return Triple("MP3", null, null)
         }
         return Triple(song.format.displayName, song.sampleRateHz, song.bitDepth)
+    }
+
+    /**
+     * 從專輯封面提取顏色
+     *
+     * @param song 當前歌曲
+     * @return Triple<dominantColor, vibrantColor, darkVibrantColor>
+     */
+    private suspend fun extractAlbumColors(song: MusicMetadata?): Triple<Color, Color?, Color?> {
+        if (song == null || colorExtractor == null) {
+            return Triple(Color(0xFF4CAF50), null, null)
+        }
+
+        return try {
+            val albumArtPath = song.albumArtPath
+            val albumColor = colorExtractor!!.extractFromPath(albumArtPath)
+            Triple(
+                albumColor.dominant,
+                albumColor.vibrant,
+                albumColor.darkVibrant
+            )
+        } catch (e: Exception) {
+            Triple(Color(0xFF4CAF50), null, null)
+        }
     }
 }

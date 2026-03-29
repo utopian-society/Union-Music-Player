@@ -2,6 +2,7 @@
 
 package org.bibichan.union.player.ui.player.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +29,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -47,20 +50,24 @@ fun MiniPlayer(
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
+    // 使用專輯主色調創建動態背景
+    val dynamicBackground = remember(state.dominantColor) {
+        state.dominantColor.copy(alpha = 0.15f)
+    }
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .height(72.dp)
             .clip(RoundedCornerShape(16.dp))
-            .hazeEffect(state = hazeState, style = HazeMaterials.ultraThin())
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.08f))
+            .hazeEffect(state = hazeState, style = HazeMaterials.thin())
             .clickable { onExpand() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f)
+            containerColor = dynamicBackground
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -69,10 +76,15 @@ fun MiniPlayer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 專輯封面 - 使用動態邊框顏色
             Surface(
                 modifier = Modifier.size(48.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                color = state.dominantColor.copy(alpha = 0.3f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 2.dp,
+                    color = state.dominantColor.copy(alpha = 0.5f)
+                )
             ) {
                 val albumArt = state.currentSong?.albumArt
                 val albumArtPath = state.currentSong?.albumArtPath
@@ -95,7 +107,7 @@ fun MiniPlayer(
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = "Album cover",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = state.dominantColor,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
@@ -119,13 +131,21 @@ fun MiniPlayer(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                MiniProgressBar(progress = state.progress)
+                MiniProgressBar(
+                    progress = state.progress,
+                    progressColor = state.dominantColor
+                )
             }
 
-            IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp)) {
+            // 播放按鈕 - 使用動態顏色
+            IconButton(
+                onClick = onPlayPause,
+                modifier = Modifier.size(40.dp)
+            ) {
                 Icon(
                     imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Play"
+                    contentDescription = if (state.isPlaying) "Pause" else "Play",
+                    tint = state.dominantColor
                 )
             }
 
@@ -140,7 +160,10 @@ fun MiniPlayer(
 }
 
 @Composable
-private fun MiniProgressBar(progress: Float) {
+private fun MiniProgressBar(
+    progress: Float,
+    progressColor: Color = MaterialTheme.colorScheme.primary
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -152,7 +175,7 @@ private fun MiniProgressBar(progress: Float) {
             modifier = Modifier
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .height(3.dp)
-                .background(MaterialTheme.colorScheme.primary)
+                .background(progressColor)
         )
     }
 }
