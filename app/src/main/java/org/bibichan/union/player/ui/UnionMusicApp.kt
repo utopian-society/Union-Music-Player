@@ -106,16 +106,7 @@ fun UnionMusicApp(
                 return@rememberStandardBottomSheetState false
             }
             true
-        },
-        // 優化手勢交互參數
-        positionalAnimationsSpec = androidx.compose.animation.core.spring(
-            dampingRatio = 0.8f,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        ),
-        velocityAnimationsSpec = androidx.compose.animation.core.spring(
-            dampingRatio = 0.8f,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-        )
+        }
     )
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = sheetState

@@ -1,17 +1,17 @@
 /**
  * AlbumColorExtractor.kt - 專輯封面顏色提取工具
- * 
+ *
  * 使用 Android Palette API 從專輯封面圖片提取主色調
  * 用於實現動態模糊背景效果
- * 
+ *
  * 2026-03-28: 初始實現
  */
 package org.bibichan.union.player.ui.player.utils
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.request.ImageRequest
@@ -49,7 +49,7 @@ data class AlbumColor(
 
 /**
  * 專輯顏色提取器
- * 
+ *
  * 使用示例:
  * ```kotlin
  * val extractor = AlbumColorExtractor(context)
@@ -57,11 +57,14 @@ data class AlbumColor(
  * ```
  */
 class AlbumColorExtractor(
-    private val imageLoader: ImageLoader
+    private val context: Context
 ) {
+    // 懶加載 ImageLoader
+    private val imageLoader: ImageLoader by lazy { ImageLoader(context) }
+    
     /**
      * 從圖片路徑提取顏色
-     * 
+     *
      * @param imagePath 專輯封面圖片路徑
      * @return AlbumColor 包含各種顏色變體
      */
@@ -71,7 +74,7 @@ class AlbumColorExtractor(
         }
         
         try {
-            val request = ImageRequest.Builder(imageLoader)
+            val request = ImageRequest.Builder(context)
                 .data(imagePath)
                 .allowHardware(false)
                 .build()
@@ -92,7 +95,7 @@ class AlbumColorExtractor(
 
     /**
      * 從 Bitmap 提取顏色
-     * 
+     *
      * @param bitmap 專輯封面 Bitmap
      * @return AlbumColor 包含各種顏色變體
      */
@@ -114,7 +117,7 @@ class AlbumColorExtractor(
 
     /**
      * 從 Android Bitmap 提取顏色（非 Compose 版本）
-     * 
+     *
      * @param androidBitmap Android Bitmap
      * @return AlbumColor 包含各種顏色變體
      */
@@ -138,8 +141,8 @@ class AlbumColorExtractor(
         /**
          * 創建默認的顏色提取器
          */
-        fun createDefault(imageLoader: ImageLoader): AlbumColorExtractor {
-            return AlbumColorExtractor(imageLoader)
+        fun createDefault(context: Context): AlbumColorExtractor {
+            return AlbumColorExtractor(context)
         }
     }
 }

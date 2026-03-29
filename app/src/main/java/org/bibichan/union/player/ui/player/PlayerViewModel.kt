@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import coil.ImageLoader
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,10 +25,10 @@ class PlayerViewModel(
 
     private var progressJob: Job? = null
     
-    // 顏色提取器 - 使用 Context 創建 ImageLoader
+    // 顏色提取器
     private val colorExtractor: AlbumColorExtractor? by lazy {
         context?.let { ctx ->
-            AlbumColorExtractor(ImageLoader(ctx))
+            AlbumColorExtractor(ctx)
         }
     }
 
