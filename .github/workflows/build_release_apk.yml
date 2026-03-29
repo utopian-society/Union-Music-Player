@@ -24,10 +24,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository with submodules
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: true          # Important for media3 submodule
         fetch-depth: 0
 
     - name: Set up JDK 25
@@ -42,19 +41,17 @@ jobs:
 
     - name: Install required SDK components
       run: |
-        sdkmanager --install "platforms;android-36" \
-          "build-tools;35.0.0" \
+        sdkmanager --install "platforms;android-34" \
+          "build-tools;34.0.0" \
           "platform-tools" \
-          "cmdline-tools;latest" \
-          "ndk;26.1.10909125" \
-          "cmake;3.22.1" 
+          "cmdline-tools;latest"
         yes | sdkmanager --licenses
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # ==================== REMOVED: All Media3 FFmpeg build steps ====================
-    # No more git clone, no more build_ffmpeg.sh, no more publishToMavenLocal
+    - name: Validate Gradle wrapper
+      run: ./gradlew --version
 
     - name: Update version in build.gradle.kts
       run: |

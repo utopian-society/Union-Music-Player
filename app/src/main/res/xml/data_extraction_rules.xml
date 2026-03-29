@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 
+Data Extraction Rules: Controls data extraction when user changes devices 
+Applies to Android 12+ (API 31+)
+-->
 <data-extraction-rules>
-    <cloud-backup disableIfNoEncryptionCapabilities="true">
-        <!-- TODO: Add cloud backup rules here -->
+    <cloud-backup>
+        <include domain="sharedpref" path="."/>
+        <exclude domain="sharedpref" path="device.xml"/>
     </cloud-backup>
-    <device-transfer>
-        <!-- TODO: Add device transfer rules here -->
-    </device-transfer>
 </data-extraction-rules>

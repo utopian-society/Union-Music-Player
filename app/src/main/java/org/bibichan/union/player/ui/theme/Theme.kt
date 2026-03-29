@@ -1,169 +1,157 @@
-/**
- * Theme.kt - Material 3 主题配置
- *
- * 定义应用的Material 3主题，包括颜色方案、形状等。
- * Material 3提供了更现代、更灵活的设计系统。
- */
 package org.bibichan.union.player.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ==================== 亮色主题 ====================
 /**
- * 亮色主题颜色方案
- * 使用绿色、黄色和白色作为主要颜色
+ * Union Music Player Theme
+ * 
+ * This file defines the app's theme system.
+ * The theme provides colors and typography to all child components.
+ * 
+ * KEY CONCEPTS:
+ * 
+ * 1. ColorScheme:
+ *    - Bundles all colors used in Material Design
+ *    - Has semantic names (primary, surface, onPrimary, etc.)
+ *    - "onPrimary" = color of text ON primary background
+ * 
+ * 2. lightColorScheme vs darkColorScheme:
+ *    - lightColorScheme: Colors when phone is in light mode
+ *    - darkColorScheme: Colors when phone is in dark mode
+ * 
+ * 3. @Composable:
+ *    - Annotation that marks a function as "composable"
+ *    - Composable functions can build UI
+ *    - Can only be called from other composable functions
+ */
+
+// ─────────────────────────────────────────────────────────────
+// LIGHT THEME COLOR SCHEME
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * LightColorScheme defines colors for light theme.
+ * 
+ * Material 3 ColorScheme properties:
+ * - primary: Main brand color (our green)
+ * - secondary: Supporting color (lighter green)
+ * - tertiary: Accent color (yellow)
+ * - surface: Background for cards, sheets
+ * - background: Main app background
+ * - onPrimary: Text color on primary background (white on green)
+ * - onSurface: Text color on surface background (black on white)
  */
 private val LightColorScheme = lightColorScheme(
-    // 主色调 - 绿色系
-    primary = GreenPrimary,
-    onPrimary = TextOnPrimary,
-    primaryContainer = GreenMuted,
-    onPrimaryContainer = TextPrimary,
-    
-    // 次要色调 - 黄色系
-    secondary = YellowPrimary,
-    onSecondary = TextOnSecondary,
-    secondaryContainer = YellowMuted,
-    onSecondaryContainer = TextPrimary,
-    
-    // 第三色调
-    tertiary = GreenDark,
-    onTertiary = TextOnPrimary,
-    tertiaryContainer = GreenLight,
-    onTertiaryContainer = TextPrimary,
-    
-    // 背景色
-    background = White,
-    onBackground = TextPrimary,
-    
-    // 表面色（卡片、菜单等）
-    surface = White,
-    onSurface = TextPrimary,
-    surfaceVariant = OffWhite,
-    onSurfaceVariant = TextSecondary,
-    
-    // 轮廓色（边框、分隔线等）
-    outline = LightGray,
-    outlineVariant = Color(0xFFE0E0E0),
-    
-    // 错误色
-    error = ErrorRed,
-    onError = Color.White,
-    errorContainer = Color(0xFFFFE5E5),
-    onErrorContainer = Color(0xFF410002),
-    
-    // 反色（用于反向强调）
-    inverseSurface = Color(0xFF313131),
-    inverseOnSurface = Color(0xFFF5F5F5),
-    inversePrimary = GreenLight,
-    
-    // 其他
-    scrim = Color.Black
+    primary = GreenPrimary,           // TopAppBar, primary buttons
+    secondary = GreenSecondary,       // Secondary elements
+    tertiary = YellowAccent,          // Accent elements
+    surface = TranslucentWhite,       // Card backgrounds (semi-transparent)
+    background = LightBackground,     // Main app background
+    onPrimary = Color.White,          // Text on green background
+    onSecondary = Color.Black,        // Text on light green
+    onTertiary = Color.Black,         // Text on yellow
+    onSurface = Color.Black,          // Text on white/surface
+    onBackground = Color.Black        // Text on main background
 )
 
-// ==================== 暗色主题 ====================
+// ─────────────────────────────────────────────────────────────
+// DARK THEME COLOR SCHEME
+// ─────────────────────────────────────────────────────────────
+
 /**
- * 暗色主题颜色方案
+ * DarkColorScheme defines colors for dark theme.
+ * 
+ * Dark theme uses different colors for better contrast:
+ * - Darker backgrounds
+ * - Lighter text
+ * - Adjusted primary colors (less vibrant for dark mode)
  */
 private val DarkColorScheme = darkColorScheme(
-    // 主色调 - 绿色系
-    primary = DarkPrimary,
-    onPrimary = Color(0xFF003A12),
-    primaryContainer = GreenDark,
-    onPrimaryContainer = GreenMuted,
-    
-    // 次要色调 - 黄色系
-    secondary = DarkSecondary,
-    onSecondary = Color(0xFF3E2E00),
-    secondaryContainer = Color(0xFF573E00),
-    onSecondaryContainer = YellowMuted,
-    
-    // 第三色调
-    tertiary = GreenLight,
-    onTertiary = Color(0xFF003A12),
-    tertiaryContainer = GreenDark,
-    onTertiaryContainer = GreenMuted,
-    
-    // 背景色
-    background = DarkBackground,
-    onBackground = DarkTextPrimary,
-    
-    // 表面色
-    surface = DarkSurface,
-    onSurface = DarkTextPrimary,
-    surfaceVariant = Color(0xFF2C2C2C),
-    onSurfaceVariant = DarkTextSecondary,
-    
-    // 轮廓色
-    outline = Color(0xFF8E918F),
-    outlineVariant = Color(0xFF444744),
-    
-    // 错误色
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-    
-    // 反色
-    inverseSurface = Color(0xFFE0E0E0),
-    inverseOnSurface = Color(0xFF1C1C1C),
-    inversePrimary = GreenPrimary,
-    
-    // 其他
-    scrim = Color.Black
+    primary = GreenSecondary,         // Slightly different green for dark mode
+    secondary = GreenPrimary,
+    tertiary = YellowAccent,
+    surface = Color(0xFF1E1E1E),      // Dark gray surface
+    background = DarkBackground,      // Very dark background
+    onPrimary = Color.Black,          // Dark text on green
+    onSecondary = Color.White,        // White text on green
+    onTertiary = Color.Black,
+    onSurface = Color.White,          // White text on dark surface
+    onBackground = Color.White        // White text on dark background
 )
 
+// ─────────────────────────────────────────────────────────────
+// MAIN THEME COMPOSABLE
+// ─────────────────────────────────────────────────────────────
+
 /**
- * UnionMusicPlayerTheme - 应用主题
- *
- * @param darkTheme 是否使用暗色主题，默认跟随系统
- * @param dynamicColor 是否使用动态颜色（Android 12+），默认关闭以保持品牌色
- * @param content 主题内容
+ * MusicTheme is the main theme wrapper for the app.
+ * 
+ * PARAMETERS:
+ * - darkTheme: Boolean - whether to use dark theme
+ *   - Defaults to isSystemInDarkTheme() (follows phone setting)
+ * - content: The UI content to wrap with the theme
+ * 
+ * HOW IT WORKS:
+ * 1. Checks if dark theme is enabled
+ * 2. Selects appropriate color scheme
+ * 3. Updates system status bar color
+ * 4. Wraps content with MaterialTheme
+ * 
+ * USAGE:
+ * ```
+ * MusicTheme {
+ *     // All UI components here inherit the theme
+ *     Text("Hello", color = MaterialTheme.colorScheme.onSurface)
+ * }
+ * ```
  */
 @Composable
-fun UnionMusicPlayerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // 默认关闭动态颜色，以保持绿色+黄色+白色的品牌色
-    dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
+fun MusicTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),  // Auto-detect system theme
+    content: @Composable () -> Unit              // UI content to wrap
 ) {
-    val colorScheme = when {
-        // 如果启用动态颜色且系统版本支持（Android 12+）
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        // 否则使用我们定义的品牌色
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    // Choose color scheme based on theme preference
+    val colorScheme = if (darkTheme) {
+        DarkColorScheme   // Use dark colors
+    } else {
+        LightColorScheme  // Use light colors
     }
     
+    // Get the current Android View (needed for status bar modification)
     val view = LocalView.current
-    if (!view.isInEditMode) {
+    
+    // SideEffect: Runs code outside of Compose's normal rendering
+    // This is needed because status bar is part of Android system, not Compose
+    if (!view.isInEditMode) {  // Skip in preview editor
         SideEffect {
+            // Get the Android window
             val window = (view.context as Activity).window
+            
+            // Set status bar color to match our primary color
+            // toArgb() converts Compose Color to Android color int
             window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            
+            // Set status bar icon appearance
+            // isAppearanceLightStatusBars = true → Dark icons (for light theme)
+            // isAppearanceLightStatusBars = false → Light icons (for dark theme)
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
     
+    // MaterialTheme provides colors and typography to all child components
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = colorScheme,  // Apply our color scheme
+        typography = Typography,    // Apply our text styles
+        content = content           // The UI content wrapped in theme
     )
 }

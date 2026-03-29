@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 
+    App Name: Displayed under app icon and in title bar 
+    -->
     <string name="app_name">Union Music Player</string>
 </resources>

@@ -1,307 +1,140 @@
-/**
- * LibraryScreen.kt - 音乐库界面
- *
- * 显示本地音乐文件列表，支持按歌曲、专辑、艺术家分类。
- */
-
 package org.bibichan.union.player.ui.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import org.bibichan.union.player.MusicPlayer
-import org.bibichan.union.player.R
-import org.bibichan.union.player.data.MusicMetadata
-import org.bibichan.union.player.data.AudioFormat
+import org.bibichan.union.player.data.Album
+import org.bibichan.union.player.ui.components.AlbumCard
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * LibraryScreen Component
+ * 
+ * The main library screen that displays:
+ * - "精选推荐" (Featured) header
+ * - Grid of album cards
+ * 
+ * KEY CONCEPTS:
+ * 
+ * 1. LazyVerticalGrid:
+ *    - Efficient grid that only renders visible items
+ *    - Like RecyclerView but for Compose
+ *    - "Lazy" = loads items on demand as you scroll
+ * 
+ * 2. GridCells:
+ *    - Defines how many columns in the grid
+ *    - GridCells.Fixed(2) = always 2 columns
+ *    - GridCells.Adaptive(minSize) = as many as fit (each at least minSize wide)
+ * 
+ * 3. items():
+ *    - Tells the grid how many items to display
+ *    - Creates a composable for each item
+ * 
+ * 4. @OptIn(ExperimentalLayoutApi::class):
+ *    - Some Compose APIs are "experimental" (may change)
+ *    - @OptIn suppresses the warning
+ *    - Safe to use for production
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(
-    musicPlayer: MusicPlayer,
-    onRequestPermission: () -> Unit
+    // PARAMETERS:
+    // - albums: List of albums to display
+    // - onAlbumClick: Callback when an album card is tapped
+    albums: List<Album>,
+    onAlbumClick: (Album) -> Unit
 ) {
-    val context = LocalContext.current
-    var songs by remember { mutableStateOf<List<MusicMetadata>>(emptyList()) }
-
-    // 检查存储权限
-    val hasPermission = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) {
-            // TODO: 扫描本地音乐文件
-            // 暂时使用示例歌曲
-            songs = listOf(
-                MusicMetadata(
-                    id = 1,
-                    title = "Sample Music 1",
-                    artist = "Artist 1",
-                    album = "Sample Album",
-                    duration = 180000,
-                    bitDepth = null,
-                    sampleRateHz = null,
-                    filePath = "",
-                    format = AudioFormat.MP3
-                ),
-                MusicMetadata(
-                    id = 2,
-                    title = "Sample Music 2",
-                    artist = "Artist 2",
-                    album = "Sample Album",
-                    duration = 240000,
-                    bitDepth = null,
-                    sampleRateHz = null,
-                    filePath = "",
-                    format = AudioFormat.MP3
-                )
-            )
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Library",
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                ),
-                actions = {
-                    IconButton(onClick = { /* TODO: Search */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search"
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (!hasPermission) {
-                // 显示权限请求提示
-                PermissionRequiredCard(
-                    onRequestPermission = onRequestPermission
-                )
-            } else if (songs.isEmpty()) {
-                // 显示空状态
-                EmptyStateCard()
-            } else {
-                // 显示歌曲列表
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(songs) { song ->
-                        LibrarySongItem(
-                            song = song,
-                            onClick = {
-                                musicPlayer.setSongs(songs)
-                                val index = songs.indexOf(song)
-                                musicPlayer.play(index)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LibrarySongItem(
-    song: MusicMetadata,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = MaterialTheme.shapes.medium
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 专辑封面占位符
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.padding(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            IconButton(onClick = { /* TODO: More options */ }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PermissionRequiredCard(
-    onRequestPermission: () -> Unit
-) {
-    Card(
+    // Column: Stack header and grid vertically
+    Column(
+        // Add padding around the entire screen
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        shape = MaterialTheme.shapes.large
+            .fillMaxSize()      // Fill entire available area
+            .padding(16.dp)     // 16dp padding on all sides
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // ─────────────────────────────────────────────────────
+        // HEADER: "精选推荐" (Featured/Recommended)
+        // ─────────────────────────────────────────────────────
+        Text(
+            text = "精选推荐",  // Chinese for "Featured Recommendations"
+            // Use large, bold title style from theme
+            style = MaterialTheme.typography.headlineMedium,
+            // Add space below the header (before the grid)
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        
+        // ─────────────────────────────────────────────────────
+        // ALBUM GRID
+        // ─────────────────────────────────────────────────────
+        LazyVerticalGrid(
+            // Define column configuration:
+            // GridCells.Adaptive(minSize = 180.dp) means:
+            // - Each column is at least 180dp wide
+            // - As many columns as fit horizontally
+            // - On phone: probably 2 columns
+            // - On tablet: probably 4-5 columns
+            columns = GridCells.Adaptive(minSize = 180.dp),
+            
+            // Add space between grid items
+            contentPadding = PaddingValues(bottom = 80.dp),  // Space for MiniPlayer
+            
+            // Vertical spacing between rows
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            
+            // Horizontal spacing between columns
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Storage Permission Required",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "To play local music files, we need access to your storage.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            FilledTonalButton(
-                onClick = onRequestPermission,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+            // items(): Create a composable for each album in the list
+            items(
+                count = albums.size,  // How many items total
+                key = { index -> albums[index].id }  // Unique key for each item (helps with animations)
+            ) { index ->
+                // Get the album at this position
+                val album = albums[index]
+                
+                // Display the album card
+                AlbumCard(
+                    album = album,  // Pass album data
+                    onClick = onAlbumClick  // Pass click callback
                 )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Grant Permission")
             }
         }
     }
 }
 
-@Composable
-fun EmptyStateCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.LibraryMusic,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "No Music Found",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Add some music to your device to start playing.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
+/**
+ * WHY USE LAZYVERTICALGRID INSTEAD OF REGULAR COLUMN?
+ * 
+ * Regular Column with 100 album cards:
+ * - Creates ALL 100 cards at once
+ * - Uses lots of memory
+ * - Slow to render
+ * - Phone might lag or crash!
+ * 
+ * LazyVerticalGrid with 100 album cards:
+ * - Only creates cards currently visible on screen (~10 cards)
+ * - As you scroll, recycles old cards for new items
+ * - Uses minimal memory
+ * - Smooth scrolling even with 1000+ items!
+ * 
+ * VISUAL LAYOUT:
+ * ┌─────────────────────────────────────────┐
+ * │  精选推荐                               │ ← Header
+ * │                                         │
+ * │  ┌──────┐  ┌──────┐                    │
+ * │  │Album1│  │Album2│  ← Row 1           │
+ * │  └──────┘  └──────┘                    │
+ * │                                         │
+ * │  ┌──────┐  ┌──────┐                    │
+ * │  │Album3│  │Album4│  ← Row 2           │
+ * │  └──────┘  └──────┘                    │
+ * │                                         │
+ * │  ┌──────┐  ┌──────┐                    │
+ * │  │Album5│  │Album6│  ← Row 3           │
+ * │  └──────┘  └──────┘                    │
+ * │           ... (scroll for more)         │
+ * └─────────────────────────────────────────┘
+ */

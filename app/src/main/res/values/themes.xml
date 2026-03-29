@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 
+    App Theme: Base theme for the application 
+    Uses Material 3 Components
+    -->
+    <style name="Theme.UnionMusicPlayer" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 
+        Primary color: Green from our brand 
+        Used for status bar
+        -->
+        <item name="android:statusBarColor">@android:color/holo_green_light</item>
+        
+        <!-- 
+        Window background: Default white/light 
+        -->
+        <item name="android:windowBackground">?android:colorBackground</item>
+        
+        <!-- 
+        Enable edge-to-edge display 
+        Allows app to draw behind system bars
+        -->
+        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
+    </style>
+</resources>

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 
+Backup Rules: Controls what data is backed up to Google Drive 
+Full backup: Back up everything (default behavior)
+-->
 <full-backup-content>
-    <!-- TODO: Add backup rules here -->
+    <include domain="sharedpref" path="."/>
+    <exclude domain="sharedpref" path="device.xml"/>
 </full-backup-content>

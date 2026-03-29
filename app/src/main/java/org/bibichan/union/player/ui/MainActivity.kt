@@ -1,285 +1,201 @@
-/**
- * MainActivity.kt - 主界面Activity (Jetpack Compose版本)
- *
- * 这是Union Music Player的主界面入口点，使用Jetpack Compose构建UI。
- * Material 3设计系统，Apple Music风格的三按钮导航。
- *
- * 2026-03-22: 添加資料夾選擇器支援
- * 2026-03-23: 添加掃描進度對話框支援
- * 2026-03-24: 新掃描會取代舊索引
- */
 package org.bibichan.union.player.ui
 
-import android.Manifest
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.Settings
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
-import androidx.documentfile.provider.DocumentFile
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import org.bibichan.union.player.MusicPlayer
-import org.bibichan.union.player.data.MusicScanner
-import org.bibichan.union.player.data.ScannedFilesManager
-import org.bibichan.union.player.ui.components.ScanningDialogState
-import org.bibichan.union.player.ui.components.ScanningProgressDialog
-import org.bibichan.union.player.ui.theme.UnionMusicPlayerTheme
-
-private const val TAG = "MainActivity"
+import org.bibichan.union.player.ui.theme.MusicTheme
 
 /**
- * MainActivity类 - 应用的主界面
- *
- * 使用Jetpack Compose构建Material 3风格的UI
+ * MainActivity - Entry Point of the App
+ * 
+ * This is the first Android component that runs when the app launches.
+ * 
+ * KEY CONCEPTS:
+ * 
+ * 1. ComponentActivity:
+ *    - Modern Android Activity class
+ *    - Designed for Compose apps
+ *    - Provides setContent() method
+ * 
+ * 2. onCreate():
+ *    - Called when the activity is first created
+ *    - This is where we set up the UI
+ *    - Similar to "main()" function but for Android
+ * 
+ * 3. setContent():
+ *    - Compose function that creates the UI
+ *    - Everything inside is a composable function
+ *    - Automatically updates when data changes
+ * 
+ * 4. enableEdgeToEdge():
+ *    - Makes app draw behind status bar and navigation bar
+ *    - Creates immersive, modern look
+ *    - Required for full-screen experience
  */
 class MainActivity : ComponentActivity() {
-
-    private lateinit var musicPlayer: MusicPlayer
-
-    private lateinit var musicScanner: MusicScanner
-
-    private lateinit var scannedFilesManager: ScannedFilesManager
-
-    private val scope = CoroutineScope(Dispatchers.Main)
-
-    private val folderPickerLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        uri?.let {
-            Log.i(TAG, "Selected folder URI: $uri")
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            scanSelectedFolder(it)
-        } ?: run {
-            Log.w(TAG, "No folder selected")
-        }
-    }
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.entries.all { it.value }
-        if (allGranted) {
-            Toast.makeText(this, "Storage permission granted", Toast.LENGTH_SHORT).show()
-            onPermissionGranted()
-        } else {
-            Toast.makeText(
-                this,
-                "Storage permission denied. Some features may not work.",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    private val manageStorageLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (Environment.isExternalStorageManager()) {
-                Toast.makeText(this, "All files access granted", Toast.LENGTH_SHORT).show()
-                onPermissionGranted()
-            } else {
-                Toast.makeText(
-                    this,
-                    "All files access denied. Playlist features may not work properly.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
+    
+    /**
+     * onCreate() - Called when activity starts
+     * 
+     * Bundle?: Contains saved state (null on first launch)
+     * 
+     * Lifecycle:
+     * 1. App is launched
+     * 2. Android creates MainActivity
+     * 3. onCreate() is called
+     * 4. We set up the UI with setContent()
+     * 5. User sees the app!
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Call parent class's onCreate (required!)
         super.onCreate(savedInstanceState)
-
-        musicPlayer = MusicPlayer(this)
-        musicScanner = MusicScanner(this)
-        scannedFilesManager = ScannedFilesManager.getInstance(this)
-
-        checkAndRequestPermissions()
-
+        
+        // Enable edge-to-edge display
+        // This makes the app draw behind system bars
+        enableEdgeToEdge()
+        
+        // ─────────────────────────────────────────────────────
+        // SET UP THE UI WITH COMPOSE
+        // ─────────────────────────────────────────────────────
+        
+        /**
+         * setContent() defines the UI using Compose.
+         * 
+         * Structure (from outside to inside):
+         * 
+         * 1. MusicTheme: Applies colors and typography
+         *    └── 2. Surface: Material Design background container
+         *        └── 3. UnionMusicApp: The actual app UI
+         */
         setContent {
-            UnionMusicPlayerTheme {
-                var scanningDialogState by remember { mutableStateOf(ScanningDialogState()) }
-
-                val scanState by musicScanner.scanState.collectAsState()
-
+            // MusicTheme: Wraps app with our custom theme
+            // - Provides GreenPrimary, YellowAccent colors
+            // - Provides Typography styles
+            MusicTheme {
+                
+                // Surface: Material Design container
+                // - Provides proper background color
+                // - Fills entire screen
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    UnionMusicApp(
-                        musicPlayer = musicPlayer,
-                        onRequestPermission = { checkAndRequestPermissions() },
-                        onPermissionResult = { onPermissionGranted() },
-                        onFolderPickerRequest = { openFolderPicker() }
-                    )
-                }
-
-                if (scanningDialogState.isVisible) {
-                    ScanningProgressDialog(
-                        scanState = scanState,
-                        onDismiss = {
-                            scanningDialogState = scanningDialogState.copy(isVisible = false)
-                        },
-                        onCancel = {
-                            musicScanner.stopScan()
-                            scanningDialogState = scanningDialogState.copy(isVisible = false)
-                            Toast.makeText(this, "Scan cancelled", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-
-                LaunchedEffect(scanState) {
-                    when (scanState) {
-                        is MusicScanner.ScanState.Scanning -> {
-                            scanningDialogState = scanningDialogState.copy(
-                                isVisible = true,
-                                scanState = scanState
-                            )
-                        }
-                        is MusicScanner.ScanState.Completed,
-                        is MusicScanner.ScanState.Error -> {
-                            scanningDialogState = scanningDialogState.copy(scanState = scanState)
-                        }
-                        else -> {}
-                    }
+                    
+                    // UnionMusicApp: The main app composable
+                    // This is where all our UI components live!
+                    UnionMusicApp()
+                    
                 }
             }
         }
-    }
-
-    private fun openFolderPicker() {
-        Log.i(TAG, "Opening folder picker...")
-        folderPickerLauncher.launch(null)
-    }
-
-    private fun scanSelectedFolder(folderUri: Uri) {
-        Log.i(TAG, "Starting scan for folder: $folderUri")
-
-        scope.launch {
-            try {
-                val documentFile = DocumentFile.fromTreeUri(this@MainActivity, folderUri)
-                val folderName = documentFile?.name ?: "Unknown Folder"
-                val folderPath = folderUri.path ?: folderUri.toString()
-
-                Log.i(TAG, "Folder name: $folderName")
-
-                val result = musicScanner.scanDocumentFolder(folderUri, this@MainActivity)
-
-                Log.i(TAG, "Scan completed: ${result.songs.size} songs found")
-
-                if (result.songs.isNotEmpty()) {
-                    scannedFilesManager.replaceAllWithSingleFolder(
-                        folderUri = folderUri,
-                        name = folderName,
-                        path = folderPath,
-                        songs = result.songs
-                    )
-
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Found ${result.songs.size} songs in $folderName",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                } else {
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "No music files found in $folderName",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error scanning folder", e)
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error scanning folder: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-    }
-
-    private fun onPermissionGranted() {
-        PermissionManager.updatePermissionStatus(this)
-        Toast.makeText(this, "Permissions updated, refreshing UI...", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun checkAndRequestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.data = Uri.parse("package:$packageName")
-                    manageStorageLauncher.launch(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    manageStorageLauncher.launch(intent)
-                }
-            } else {
-                onPermissionGranted()
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_MEDIA_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_AUDIO))
-            } else {
-                onPermissionGranted()
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
-            } else {
-                onPermissionGranted()
-            }
-        }
-    }
-
-    private fun hasAllFilesAccess(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            true
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        musicPlayer.release()
-        musicScanner.cleanup()
     }
 }
+
+/**
+ * ANDROID ACTIVITY LIFECYCLE (Simplified):
+ * 
+ * ┌─────────────────┐
+ * │   App Launched  │
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onCreate()    │ ← We are here!
+ * │   (Create UI)   │
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onStart()     │ ← Activity becomes visible
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onResume()    │ ← User can interact
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   Running...    │
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onPause()     │ ← User switches apps
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onStop()      │ ← Activity no longer visible
+ * └────────┬────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   onDestroy()   │ ← Activity is destroyed
+ * └─────────────────┘
+ */
+
+/**
+ * WHAT HAPPENS WHEN APP STARTS:
+ * 
+ * 1. Android reads AndroidManifest.xml
+ *    - Finds MainActivity is the "launcher" activity
+ * 
+ * 2. Android creates MainActivity instance
+ *    - Calls onCreate()
+ * 
+ * 3. onCreate() calls setContent { }
+ *    - Compose starts building UI
+ * 
+ * 4. Compose executes UnionMusicApp()
+ *    - Creates Scaffold
+ *    - Creates TopAppBar (green header)
+ *    - Creates MiniPlayer (song info + controls)
+ *    - Creates BottomNavigation (tabs)
+ *    - Creates LibraryScreen (album grid)
+ * 
+ * 5. UI is displayed on screen!
+ * 
+ * 6. User interacts (taps buttons, scrolls)
+ *    - State changes
+ *    - Compose automatically recomposes affected UI
+ *    - User sees updates instantly!
+ */
+
+/**
+ * WHY COMPOSE IS DIFFERENT FROM XML:
+ * 
+ * OLD WAY (XML layouts):
+ * ```
+ * // In onCreate():
+ * setContentView(R.layout.activity_main)  // Load XML
+ * 
+ * val button = findViewById<Button>(R.id.myButton)  // Find view
+ * button.setOnClickListener {  // Set listener
+ *     // Do something
+ * }
+ * ```
+ * 
+ * NEW WAY (Jetpack Compose):
+ * ```
+ * // In onCreate():
+ * setContent {
+ *     Button(onClick = {  // Direct callback
+ *         // Do something
+ *     }) {
+ *         Text("Click me")
+ *     }
+ * }
+ * ```
+ * 
+ * COMPOSE ADVANTAGES:
+ * - Less boilerplate code
+ * - No findViewById() needed
+ * - State automatically updates UI
+ * - Easier to understand and maintain
+ */

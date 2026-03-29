@@ -2,25 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 存储权限：用于读取本地音乐文件 -->
-    <!-- Android 12及以下版本使用 -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
+    <!-- 
+    PERMISSIONS: Required for accessing music files 
+    -->
+    
+    <!-- 
+    READ_EXTERNAL_STORAGE: For Android 12 and below
+    Allows app to read files from device storage
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-
-    <!-- Android 13+ (API 33+) 使用新的媒体权限 -->
+    
+    <!-- 
+    READ_MEDIA_AUDIO: For Android 13+ (API 33+)
+    New permission for reading audio files (more specific than READ_EXTERNAL_STORAGE)
+    -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-
-    <!-- Android 14+ (API 34+) 需要请求读取所有文件权限以便正确处理m3u8播放列表 -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
-
-    <!-- 前台服务权限：用于后台播放音乐 -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-
-    <!-- 唤醒锁权限：用于保持播放状态 -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"
@@ -32,18 +29,27 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.UnionMusicPlayer"
         tools:targetApi="31">
-
+        
+        <!-- 
+        MAIN ACTIVITY: Entry point of the app 
+        -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.UnionMusicPlayer">
+            
+            <!-- 
+            Intent Filter: Makes this activity the app launcher 
+            -->
             <intent-filter>
+                <!-- Action: This is the main entry point -->
                 <action android:name="android.intent.action.MAIN" />
+                
+                <!-- Category: This activity should appear in the app launcher -->
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 
 </manifest>

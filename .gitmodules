@@ -1,6 +1,0 @@
-[submodule "media3"]
-	path = media3
-	url = https://github.com/androidx/media.git
-[submodule "RetroMusicPlayer"]
-	path = RetroMusicPlayer
-	url = https://github.com/marcobibichan/RetroMusicPlayer

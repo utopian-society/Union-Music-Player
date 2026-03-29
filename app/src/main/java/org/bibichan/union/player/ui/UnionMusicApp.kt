@@ -1,324 +1,283 @@
-/**
- * UnionMusicApp.kt - 主应用 Composable
- *
- * 这是应用的主 Composable，包含浮动播放器和底部导航栏。
- * 设计参考 Apple Music 风格：Library、Playlist、Files、More 四个主要功能。
- * 使用 Material 3 的 NavigationBar 和 Scaffold 实现标准导航。
- *
- * 2026-03-22: 新增 Files 標籤頁
- * 2026-03-24: 使用 StateFlow 驅動浮動播放器可見性
- * 2026-03-24: 浮動播放器常駐
- * 2026-03-28: 使用 BottomSheetScaffold 替代自定义浮动层
- */
 package org.bibichan.union.player.ui
 
-import android.net.Uri
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberStandardBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.bibichan.union.player.MusicPlayer
-import org.bibichan.union.player.data.MusicMetadata
-import org.bibichan.union.player.data.MusicScanner
-import org.bibichan.union.player.data.Playlist
-import org.bibichan.union.player.ui.components.BottomControlPanel
-import org.bibichan.union.player.ui.components.LogManager
-import org.bibichan.union.player.ui.components.NavItem
-import org.bibichan.union.player.ui.library.LibraryScreen
-import org.bibichan.union.player.ui.library.LibraryViewModel
-import org.bibichan.union.player.ui.library.data.Album
-import org.bibichan.union.player.ui.player.PlayerScreen
-import org.bibichan.union.player.ui.player.PlayerViewModel
-import org.bibichan.union.player.ui.player.PlayerViewModelFactory
-import org.bibichan.union.player.ui.screens.AlbumDetailScreen
-import org.bibichan.union.player.ui.screens.FilesScreen
+import org.bibichan.union.player.data.Album
+import org.bibichan.union.player.data.Song
+import org.bibichan.union.player.ui.components.*
+import org.bibichan.union.player.ui.screens.LibraryScreen
 import org.bibichan.union.player.ui.screens.MoreScreen
-import org.bibichan.union.player.ui.screens.PlaylistManagementScreen
 
-private val BottomBarHeight = 72.dp
-
-private const val TAG = "UnionMusicApp"
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * UnionMusicApp - Main App Composable
+ * 
+ * This is the root composable that combines all components:
+ * - TopAppBar (header)
+ * - BottomNavigation (tab switcher)
+ * - LibraryScreen or MoreScreen (content based on selected tab)
+ * - MiniPlayer (always visible at bottom)
+ * 
+ * KEY CONCEPTS:
+ * 
+ * 1. Scaffold:
+ *    - Material Design layout structure
+ *    - Provides slots for: topBar, bottomBar, content, floatingActionButton
+ *    - Automatically handles padding and safe areas
+ * 
+ * 2. State Management with remember:
+ *    - remember { mutableStateOf(...) } creates observable state
+ *    - When state changes, UI automatically recomposes
+ *    - This is how Compose handles dynamic UIs!
+ * 
+ * 3. mutableStateOf:
+ *    - Creates a mutable value that Compose can observe
+ *    - When value changes, all composables reading it update automatically
+ * 
+ * 4. by keyword:
+ *    - val state by mutableStateOf("library") 
+ *    - Same as: val state = mutableStateOf("library").value
+ *    - More concise syntax!
+ */
 @Composable
-fun UnionMusicApp(
-    musicPlayer: MusicPlayer,
-    onRequestPermission: () -> Unit,
-    onPermissionResult: () -> Unit = {},
-    onFolderPickerRequest: () -> Unit = {}
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    var selectedTab by remember { mutableStateOf(0) }
-    var selectedAlbum by remember { mutableStateOf<Album?>(null) }
-    var importedPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-
-    val musicScanner = remember { MusicScanner(context) }
-
-    val libraryViewModel: LibraryViewModel = viewModel()
-    val albums by libraryViewModel.albums.collectAsState()
-
-    val playerViewModel: PlayerViewModel = viewModel(
-        factory = PlayerViewModelFactory(musicPlayer, context)
-    )
-
-    val hazeState = rememberHazeState()
-
-    val sheetState = rememberStandardBottomSheetState(
-        initialValue = SheetValue.PartiallyExpanded,
-        skipHiddenState = true,
-        confirmValueChange = { targetValue ->
-            if (targetValue == SheetValue.Hidden) {
-                return@rememberStandardBottomSheetState false
-            }
-            true
-        }
-    )
-    val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = sheetState
-    )
-
-    val isSheetExpanded = sheetState.targetValue == SheetValue.Expanded
-    val bottomInsetTarget = if (isSheetExpanded) 0.dp else BottomBarHeight
-    val bottomInset by animateDpAsState(label = "sheetBottomInset", targetValue = bottomInsetTarget)
-
-    val navItems = listOf(
-        NavItem(
-            route = "library",
-            icon = Icons.Default.LibraryMusic,
-            label = "Library"
-        ),
-        NavItem(
-            route = "playlist",
-            icon = Icons.Default.QueueMusic,
-            label = "Playlist"
-        ),
-        NavItem(
-            route = "files",
-            icon = Icons.Default.Folder,
-            label = "Files"
-        ),
-        NavItem(
-            route = "more",
-            icon = Icons.Default.MoreHoriz,
-            label = "More"
+fun UnionMusicApp() {
+    // ─────────────────────────────────────────────────────
+    // STATE MANAGEMENT
+    // ─────────────────────────────────────────────────────
+    
+    /**
+     * currentRoute: Tracks which screen is currently visible
+     * 
+     * - "library" = Show LibraryScreen
+     * - "more" = Show MoreScreen
+     * 
+     * remember: Keeps the value across recompositions
+     * mutableStateOf: Makes the value observable (UI updates when changed)
+     */
+    var currentRoute by remember { mutableStateOf("library") }
+    
+    /**
+     * Sample data for demonstration
+     * In a real app, this would come from a database or file scanner
+     */
+    val sampleAlbums = remember {
+        listOf(
+            Album(
+                id = 1,
+                title = "Abbey Road",
+                artist = "The Beatles",
+                coverUrl = "",  // Would be actual image path
+                songs = listOf(
+                    Song(title = "Come Together", artist = "The Beatles"),
+                    Song(title = "Something", artist = "The Beatles")
+                )
+            ),
+            Album(
+                id = 2,
+                title = "Thriller",
+                artist = "Michael Jackson",
+                coverUrl = "",
+                songs = listOf(
+                    Song(title = "Billie Jean", artist = "Michael Jackson"),
+                    Song(title = "Thriller", artist = "Michael Jackson")
+                )
+            ),
+            Album(
+                id = 3,
+                title = "Dark Side of the Moon",
+                artist = "Pink Floyd",
+                coverUrl = "",
+                songs = listOf(
+                    Song(title = "Time", artist = "Pink Floyd"),
+                    Song(title = "Money", artist = "Pink Floyd")
+                )
+            ),
+            Album(
+                id = 4,
+                title = "Back in Black",
+                artist = "AC/DC",
+                coverUrl = "",
+                songs = listOf(
+                    Song(title = "Hells Bells", artist = "AC/DC"),
+                    Song(title = "Back in Black", artist = "AC/DC")
+                )
+            ),
+            Album(
+                id = 5,
+                title = "Rumours",
+                artist = "Fleetwood Mac",
+                coverUrl = "",
+                songs = listOf(
+                    Song(title = "Dreams", artist = "Fleetwood Mac"),
+                    Song(title = "Go Your Own Way", artist = "Fleetwood Mac")
+                )
+            ),
+            Album(
+                id = 6,
+                title = "Nevermind",
+                artist = "Nirvana",
+                coverUrl = "",
+                songs = listOf(
+                    Song(title = "Smells Like Teen Spirit", artist = "Nirvana"),
+                    Song(title = "Come As You Are", artist = "Nirvana")
+                )
+            )
         )
-    )
-
-    BackHandler(enabled = isSheetExpanded) {
-        scope.launch { sheetState.partialExpand() }
     }
-
+    
+    /**
+     * Player state - tracks current song and playback status
+     * In a real app, this would be managed by a ViewModel
+     */
+    var currentSong by remember { mutableStateOf(Song(title = "Demo Song", artist = "Demo Artist")) }
+    var isPlaying by remember { mutableStateOf(false) }
+    
+    // ─────────────────────────────────────────────────────
+    // MAIN APP STRUCTURE (Scaffold)
+    // ─────────────────────────────────────────────────────
+    
+    /**
+     * Scaffold provides the basic Material Design layout structure.
+     * 
+     * Think of it like a frame with predefined slots:
+     * - topBar: Slot for app bar at the top
+     * - bottomBar: Slot for navigation at the bottom
+     * - content: Main content area (automatically sized between bars)
+     * - floatingActionButton: Optional FAB (we're not using this)
+     * 
+     * Scaffold automatically:
+     * - Adds padding for system bars (status bar, navigation bar)
+     * - Handles keyboard insets
+     * - Ensures proper spacing between components
+     */
     Scaffold(
+        // topBar: The green header at the top
+        topBar = {
+            UnionTopAppBar()
+        },
+        
+        // bottomBar: Bottom navigation + MiniPlayer container
+        // Note: We're putting BOTH in bottomBar slot
         bottomBar = {
-            if (!isSheetExpanded) {
-                BottomControlPanel(
-                    items = navItems,
-                    selectedIndex = selectedTab,
-                    onItemSelected = { index -> selectedTab = index }
+            // Column stacks MiniPlayer above BottomNavigation
+            Column {
+                // MiniPlayer: Always visible, shows current song
+                MiniPlayer(
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    onPlayPause = { 
+                        // Toggle play/pause state
+                        isPlaying = !isPlaying 
+                        // In a real app, this would call the music player
+                    },
+                    onPrevious = { 
+                        // Go to previous song
+                        // In a real app: player.playPrevious()
+                    },
+                    onNext = { 
+                        // Go to next song
+                        // In a real app: player.playNext()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                // BottomNavigation: Tab switcher
+                UnionBottomNavigation(
+                    currentRoute = currentRoute,
+                    onNavigate = { newRoute ->
+                        // Update currentRoute when user taps a tab
+                        // This triggers recomposition with new screen
+                        currentRoute = newRoute
+                    }
                 )
             }
         }
-    ) { outerPadding ->
-        BottomSheetScaffold(
-            modifier = Modifier.padding(bottom = bottomInset),
-            scaffoldState = scaffoldState,
-            sheetPeekHeight = 72.dp,
-            sheetShadowElevation = 0.dp,
-            sheetContainerColor = Color.Transparent,
-            sheetDragHandle = {
-                if (isSheetExpanded) {
-                    BottomSheetDefaults.DragHandle()
+    ) { paddingValues ->
+        // ─────────────────────────────────────────────────────
+        // CONTENT AREA (changes based on selected tab)
+        // ─────────────────────────────────────────────────────
+        
+        /**
+         * paddingValues: Inset values from Scaffold
+         * We apply these to ensure content doesn't go under system bars
+         */
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)  // Apply Scaffold's calculated padding
+        ) {
+            // Show different content based on currentRoute
+            when (currentRoute) {
+                // ─────────────────────────────────────────────
+                // LIBRARY SCREEN
+                // ─────────────────────────────────────────────
+                "library" -> {
+                    LibraryScreen(
+                        albums = sampleAlbums,  // Pass sample data
+                        onAlbumClick = { album ->
+                            // Handle album tap
+                            // In a real app: Navigate to album detail screen
+                            // For now: Just print to log
+                            println("Clicked album: ${album.title} by ${album.artist}")
+                        }
+                    )
                 }
-            },
-            sheetContent = {
-                Column(modifier = Modifier.hazeSource(state = hazeState)) {
-                    PlayerScreen(
-                        viewModel = playerViewModel,
-                        isExpanded = isSheetExpanded,
-                        onExpand = { scope.launch { sheetState.expand() } },
-                        onCollapse = { scope.launch { sheetState.partialExpand() } },
-                        hazeState = hazeState,
-                        modifier = Modifier.fillMaxWidth()
+                
+                // ─────────────────────────────────────────────
+                // MORE SCREEN
+                // ─────────────────────────────────────────────
+                "more" -> {
+                    MoreScreen(
+                        onSettingsClick = {
+                            // Handle settings tap
+                            println("Settings clicked")
+                        },
+                        onHistoryClick = {
+                            // Handle history tap
+                            println("Play history clicked")
+                        }
+                    )
+                }
+                
+                // Fallback (shouldn't happen, but good practice)
+                else -> {
+                    // Default to library if route is unknown
+                    LibraryScreen(
+                        albums = sampleAlbums,
+                        onAlbumClick = { }
                     )
                 }
             }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(outerPadding)
-                    .padding(innerPadding)
-            ) {
-                when {
-                    selectedAlbum != null -> {
-                        AlbumDetailScreen(
-                            album = selectedAlbum!!,
-                            onSongClick = { _, playlist, index ->
-                                playSongList(musicPlayer, playlist, index)
-                                scope.launch { sheetState.expand() }
-                            },
-                            onBack = {
-                                selectedAlbum = null
-                            }
-                        )
-                    }
-
-                    else -> when (selectedTab) {
-                        0 -> LibraryScreen(
-                            musicPlayer = musicPlayer,
-                            onAlbumClick = { albumId ->
-                                selectedAlbum = albums.firstOrNull { it.id == albumId }
-                            },
-                            onRequestPermission = onRequestPermission,
-                            onPermissionResult = onPermissionResult
-                        )
-
-                        1 -> PlaylistManagementScreen(
-                            playlists = importedPlaylists,
-                            onImportPlaylist = { uri ->
-                                LogManager.i(TAG, "=== PLAYLIST IMPORT STARTED ===")
-                                LogManager.i(TAG, "URI: $uri")
-                                LogManager.i(TAG, "URI scheme: ${uri.scheme}")
-                                LogManager.i(TAG, "URI path: ${uri.path}")
-                                scope.launch {
-                                    importPlaylist(
-                                        musicScanner = musicScanner,
-                                        uri = uri,
-                                        existingPlaylists = importedPlaylists,
-                                        onResult = { playlist ->
-                                            if (playlist != null) {
-                                                importedPlaylists = importedPlaylists + playlist
-                                                LogManager.i(TAG, "=== PLAYLIST IMPORT SUCCESS ===")
-                                                LogManager.i(TAG, "Playlist: ${playlist.name}")
-                                                LogManager.i(TAG, "Songs: ${playlist.songs.size}")
-                                                playlist.songs.forEachIndexed { index, song ->
-                                                    LogManager.d(TAG, " Song $index: ${song.title} - ${song.artist}")
-                                                }
-                                            } else {
-                                                LogManager.e(TAG, "=== PLAYLIST IMPORT FAILED ===")
-                                            }
-                                        }
-                                    )
-                                }
-                            },
-                            onPlaylistClick = { playlist ->
-                                if (playlist.songs.isNotEmpty()) {
-                                    LogManager.i(TAG, "Playing playlist: ${playlist.name} with ${playlist.songs.size} songs")
-                                    playSongList(musicPlayer, playlist.songs, 0)
-                                    scope.launch { sheetState.expand() }
-                                }
-                            },
-                            onPlaylistDelete = { playlist ->
-                                LogManager.i(TAG, "Deleting playlist: ${playlist.name}")
-                                importedPlaylists = importedPlaylists.filter { it.id != playlist.id }
-                            }
-                        )
-
-                        2 -> FilesScreen(
-                            musicPlayer = musicPlayer,
-                            onFolderPickerRequest = onFolderPickerRequest,
-                            onOpenPlayer = { scope.launch { sheetState.expand() } }
-                        )
-
-                        3 -> MoreScreen(
-                            onRequestPermission = onRequestPermission,
-                            onPermissionResult = onPermissionResult,
-                            onFolderPickerRequest = onFolderPickerRequest
-                        )
-                    }
-                }
-            }
         }
     }
 }
 
-private fun playSongList(
-    musicPlayer: MusicPlayer,
-    songs: List<MusicMetadata>,
-    startIndex: Int
-) {
-    musicPlayer.setSongs(songs)
-    musicPlayer.play(startIndex)
-
-    LogManager.i(TAG, "Playing song at index $startIndex from list of ${songs.size} songs")
-
-    songs.forEachIndexed { index, song ->
-        LogManager.d(TAG, "Song $index: ${song.title} - ${song.artist}")
-    }
-}
-
-private suspend fun importPlaylist(
-    musicScanner: MusicScanner,
-    uri: Uri,
-    existingPlaylists: List<Playlist>,
-    onResult: (Playlist?) -> Unit
-) {
-    try {
-        LogManager.i(TAG, "=== STARTING PLAYLIST PARSING ===")
-        LogManager.i(TAG, "URI: $uri")
-
-        val playlist = withContext(Dispatchers.IO) {
-            LogManager.d(TAG, "Calling parsePlaylistFromUri...")
-            val result = musicScanner.parsePlaylistFromUri(uri, emptyList())
-            LogManager.d(TAG, "parsePlaylistFromUri returned: ${result?.name ?: "null"}")
-            result
-        }
-
-        LogManager.i(TAG, "Playlist parsing completed")
-
-        if (playlist != null && playlist.songs.isNotEmpty()) {
-            LogManager.i(TAG, "Playlist '${playlist.name}' has ${playlist.songs.size} songs")
-
-            val existingNames = existingPlaylists.map { it.name }
-            if (playlist.name in existingNames) {
-                LogManager.w(TAG, "Playlist ${playlist.name} already exists, adding suffix")
-                onResult(playlist.copy(name = "${playlist.name} (1)"))
-            } else {
-                LogManager.i(TAG, "Adding new playlist: ${playlist.name}")
-                onResult(playlist)
-            }
-        } else {
-            LogManager.e(TAG, "No songs found in playlist or playlist is null")
-            LogManager.e(TAG, "Playlist: ${playlist?.name}, Songs count: ${playlist?.songs?.size ?: 0}")
-            onResult(null)
-        }
-    } catch (e: Exception) {
-        LogManager.e(TAG, "Error importing playlist: ${e.message}", e)
-        onResult(null)
-    }
-}
+/**
+ * HOW STATE FLOWS THROUGH THE APP:
+ * 
+ * 1. User taps "More" tab in UnionBottomNavigation
+ *    ↓
+ * 2. onNavigate("more") callback is triggered
+ *    ↓
+ * 3. currentRoute changes to "more"
+ *    ↓
+ * 4. Compose detects state change → Recomposes UI
+ *    ↓
+ * 5. when (currentRoute) now matches "more" branch
+ *    ↓
+ * 6. MoreScreen is displayed instead of LibraryScreen
+ * 
+ * VISUAL STRUCTURE:
+ * ┌─────────────────────────────────────────┐
+ * │  🎵 音乐播放器              (TopAppBar) │
+ * ├─────────────────────────────────────────┤
+ * │                                         │
+ * │     [LibraryScreen OR MoreScreen]       │ ← Content (changes)
+ * │                                         │
+ * ├─────────────────────────────────────────┤
+ * │  [MiniPlayer - current song + controls] │
+ * ├─────────────────────────────────────────┤
+ * │  📚 资料库          ⋮ 更多              │ ← BottomNavigation
+ * └─────────────────────────────────────────┘
+ */
