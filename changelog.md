@@ -94,11 +94,13 @@
 - Added Gradle wrapper validation step
 - **Fixed APK signing configuration:**
   - Added `signingConfigs` block to `app/build.gradle.kts`
+  - **Moved `signingConfigs` before `buildTypes`** (required by Gradle)
   - Added step to setup signing properties from secrets
   - Build steps now use `--stacktrace` for better error reporting
   - Added APK output discovery using `find` command
   - Improved release artifact preparation with error handling
   - Added debug APK build step with output listing
+  - Added secret validation and debugging output
 
 *build_ffmpeg_decoder.yml:*
 - Updated NDK to 28.2.13676358, CMake to 3.31.6
