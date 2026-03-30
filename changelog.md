@@ -95,6 +95,7 @@
 - **Fixed APK signing configuration:**
   - Added `signingConfigs` block to `app/build.gradle.kts`
   - **Moved `signingConfigs` before `buildTypes`** (required by Gradle)
+  - **Removed duplicate `debug` signing config** (AGP auto-creates it)
   - Added step to setup signing properties from secrets
   - Build steps now use `--stacktrace` for better error reporting
   - Added APK output discovery using `find` command
