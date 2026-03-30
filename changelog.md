@@ -2,6 +2,49 @@
 
 ## [Unreleased] - 2026-03-30
 
+### 🎨 Added - Apple Music-Style LibraryScreen UI
+
+**Complete Jetpack Compose implementation featuring:**
+
+#### Status Bar (Simulated)
+- Time display (9:41)
+- System icons: Signal, WiFi, Battery
+
+#### Library Header
+- Large bold "Library" title (34sp)
+
+#### Featured Albums Section
+- Horizontal scrollable row
+- 3 large album covers (160dp × 160dp)
+- 8dp corner radius
+- Placeholder data ready for real metadata
+
+#### Navigation Grid
+- 2-column layout
+- 4 items: Playlists, Artists, Albums, Songs
+- Left-aligned icons with text
+- Material Icons (Outlined)
+
+#### Recently Added Section
+- Album cover (60dp)
+- Song title ("Like A Ribbon")
+- Artist name ("Polo & Pan")
+- Playback controls (Play, More buttons)
+
+#### Bottom Navigation Bar
+- Two tabs: Library + More
+- Fixed position (80dp height)
+- 90% white opaque background (#F2FFFFFF)
+- Library tab highlighted as selected
+- Material Design 3 NavigationBar component
+
+#### Visual Design
+- Background: Pure white (#FFFFFFFF)
+- Text: High-contrast black
+- Dividers: 1dp #EEEEEE
+- Album covers: 8dp corner radius
+- Section spacing: 16dp vertical padding
+
 ### 🔧 Fixed - Gradle Build Errors
 
 #### Problems
