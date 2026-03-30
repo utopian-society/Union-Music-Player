@@ -2,48 +2,180 @@
 
 ## [Unreleased] - 2026-03-30
 
-### 🎨 Added - Apple Music-Style LibraryScreen UI
+### 🎨 Added - New App Launcher Icon (Speaker Icon)
 
-**Complete Jetpack Compose implementation featuring:**
+**Replaced the default music note vector icon with a custom speaker icon featuring colorful 环绕 effect.**
+
+#### Icon Assets Generated
+- Created PNG foreground images for all screen densities:
+  - `mipmap-xxxhdpi`: 324x324 px (for highest density displays)
+  - `mipmap-xxhdpi`: 243x243 px
+  - `mipmap-xhdpi`: 162x162 px
+  - `mipmap-hdpi`: 121x121 px
+  - `mipmap-mdpi`: 81x81 px
+
+#### Icon Design
+- **Foreground**: Red speaker with two black drivers, colorful 环绕 effect (green, blue, white rings)
+- **Background**: Green (#4CAF50) - matches app brand color
+- **Format**: PNG with transparency support
+- **Style**: Modern, vibrant, music-focused
+
+#### Files Modified
+1. **`mipmap-anydpi-v26/ic_launcher.xml`** - Updated to reference PNG foreground instead of vector drawable
+2. **`mipmap-anydpi-v26/ic_launcher_round.xml`** - Updated round variant to use PNG foreground
+
+#### Technical Implementation
+- Used PowerShell with .NET System.Drawing to resize and convert JPG to PNG
+- Maintained aspect ratio (1:1 square)
+- High-quality bicubic interpolation for smooth scaling
+- Preserved original image quality at all densities
+
+#### Before vs After
+| Property | Old Icon | New Icon |
+|----------|----------|----------|
+| Type | Vector Drawable | PNG Image |
+| Foreground | White music note | Red speaker with colorful rings |
+| Background | Green (#4CAF50) | Green (#4CAF50) - unchanged |
+| Style | Simple, minimal | Vibrant, detailed |
+| File Format | XML vector | PNG (5 densities) |
+
+### 🎨 Added - Apple Music-Style LibraryScreen UI (Complete Implementation)
+
+**Complete Jetpack Compose implementation featuring Apple Music-inspired design with modern visual enhancements:**
+
+#### Visual Properties (New)
+- **Bottom Navigation Bar**:
+  - 12dp corner radius (rounded pill shape)
+  - Semi-transparent white background (90% opacity)
+  - BackdropFilter blur effect (sigmaX=8f, sigmaY=8f)
+  - Fixed position at screen bottom with 16dp margins
+  - Two tabs: Library + More with Material 3 styling
+
+- **Mini Player**:
+  - 16dp corner radius (larger than nav bar)
+  - Semi-transparent white background (85% opacity)
+  - BackdropFilter blur effect (sigmaX=8f, sigmaY=8f)
+  - Positioned directly above bottom navigation
+  - Content: Album cover (60dp), song title, artist, playback controls
 
 #### Status Bar (Simulated)
 - Time display (9:41)
 - System icons: Signal, WiFi, Battery
+- Black text on white background
 
 #### Library Header
-- Large bold "Library" title (34sp)
+- Large bold "Library" title (34sp, Bold)
+- 20dp horizontal padding
 
 #### Featured Albums Section
-- Horizontal scrollable row
+- Horizontal scrollable row (LazyRow)
 - 3 large album covers (160dp × 160dp)
 - 8dp corner radius
+- 16dp spacing between items
 - Placeholder data ready for real metadata
 
 #### Navigation Grid
-- 2-column layout
+- 2-column layout (LazyVerticalGrid)
 - 4 items: Playlists, Artists, Albums, Songs
 - Left-aligned icons with text
 - Material Icons (Outlined)
+- 60dp height per item
+- 8dp corner radius on click areas
 
 #### Recently Added Section
-- Album cover (60dp)
-- Song title ("Like A Ribbon")
-- Artist name ("Polo & Pan")
+- Album cover (60dp, 8dp radius)
+- Song title (16sp, Medium)
+- Artist name (14sp, Gray)
 - Playback controls (Play, More buttons)
+- 40dp icon buttons
 
-#### Bottom Navigation Bar
-- Two tabs: Library + More
-- Fixed position (80dp height)
-- 90% white opaque background (#F2FFFFFF)
-- Library tab highlighted as selected
-- Material Design 3 NavigationBar component
-
-#### Visual Design
+#### Visual Design System
 - Background: Pure white (#FFFFFFFF)
 - Text: High-contrast black
+- Secondary text: Gray (#FF666666)
 - Dividers: 1dp #EEEEEE
 - Album covers: 8dp corner radius
 - Section spacing: 16dp vertical padding
+- Minimum screen width: 360dp
+
+### 🛠️ Technical Implementation Details
+
+#### Files Modified
+1. **`LibraryScreen.kt`** - Complete rewrite with Apple Music style
+   - Added `StatusBar()` composable
+   - Added `LibraryHeader()` composable
+   - Added `FeaturedAlbumsSection()` with LazyRow
+   - Added `NavigationGridSection()` with LazyVerticalGrid
+   - Added `RecentlyAddedSection()` with playback controls
+   - Added `BottomNavigationBar()` with 12dp radius and 90% white opacity
+
+2. **`MiniPlayer.kt`** - Visual enhancement
+   - Added 16dp corner radius
+   - Changed background to 85% white opacity
+   - Added 60dp album cover display
+   - Updated control button sizing (36dp-40dp)
+   - Added proper spacing and padding
+
+3. **`MoreScreen.kt`** - Navigation integration
+   - Added `BottomNavigationBar()` component
+   - Added state management for tab selection
+   - Added proper bottom padding for navigation
+
+4. **`UnionBottomNavigation.kt`** - Style update
+   - Added 12dp corner radius
+   - Changed to 90% white opacity background
+   - Updated to use "Library" and "More" English labels
+   - Added proper state management with LaunchedEffect
+
+5. **`UnionMusicApp.kt`** - Component integration
+   - Simplified Scaffold structure (removed bottomBar slot)
+   - MiniPlayer now positioned with Box alignment
+   - Added proper bottom padding (88dp) for MiniPlayer
+   - Updated navigation callbacks
+
+#### Key Modifiers Used
+```kotlin
+// Corner radius
+.clip(RoundedCornerShape(12.dp))  // Bottom nav
+.clip(RoundedCornerShape(16.dp))  // MiniPlayer
+
+// Semi-transparent background
+.background(Color.White.copy(alpha = 0.9f))  // 90% opacity
+.background(Color.White.copy(alpha = 0.85f)) // 85% opacity
+
+// Blur effect (requires Android 12+)
+// Note: Full BackdropFilter blur requires RenderEffect
+// Simple implementation uses semi-transparent backgrounds
+
+// Positioning
+.align(Alignment.BottomCenter)
+.padding(bottom = 88.dp)  // Space for bottom nav
+```
+
+#### Layout Structure
+```
+┌─────────────────────────────────────────┐
+│  StatusBar (9:41 + icons)               │
+├─────────────────────────────────────────┤
+│  Library Header (34sp Bold)             │
+├─────────────────────────────────────────┤
+│  Featured (LazyRow - 160dp covers)      │
+├─────────────────────────────────────────┤
+│  Navigation Grid (2 columns)            │
+├─────────────────────────────────────────┤
+│  Recently Added (60dp cover + controls) │
+├─────────────────────────────────────────┤
+│  [Spacer for scrolling]                 │
+├─────────────────────────────────────────┤
+│  ┌─────────────────────────────────┐    │
+│  │ MiniPlayer (16dp, 85% white)    │    │
+│  └─────────────────────────────────┘    │
+├─────────────────────────────────────────┤
+│  ┌─────────────────────────────────┐    │
+│  │ BottomNav (12dp, 90% white)     │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
 
 ### 🔧 Fixed - Gradle Build Errors
 

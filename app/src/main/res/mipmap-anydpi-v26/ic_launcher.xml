@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 
-Adaptive Icon: Creates app icon that adapts to different device shapes 
+<!--
+Adaptive Icon: Creates app icon that adapts to different device shapes
 Android 8.0+ (API 26+)
+Foreground: Speaker icon with colorful环绕 effect
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Background: Green circle/square/rounded square (depends on device) -->
+    <!-- Background: Green to match app brand (#4CAF50) -->
     <background android:drawable="@color/ic_launcher_background"/>
-    <!-- Foreground: Music note symbol -->
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+    <!-- Foreground: Speaker icon (PNG) -->
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
 </adaptive-icon>

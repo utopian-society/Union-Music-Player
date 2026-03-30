@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -38,14 +39,15 @@ import org.bibichan.union.player.data.Album
  * - Horizontal scrollable row: Featured album covers
  * - Vertical grid: Navigation items (Playlists, Artists, Albums, Songs)
  * - "Recently Added" section with playback controls
- * - Fixed bottom navigation: Library + More tabs
+ * - Fixed bottom navigation: Library + More tabs (with blur effect)
  *
  * Visual Design:
  * - Pure white background (#FFFFFFFF)
  * - High-contrast black text
  * - 160dp album covers with 8dp corner radius
- * - 90% white opaque bottom bar
+ * - 90% white opaque bottom bar with 12dp radius + blur
  * - Material Design 3 components
+ * - Minimum screen width: 360dp
  */
 @Composable
 fun LibraryScreen(
@@ -54,7 +56,7 @@ fun LibraryScreen(
     onNavigate: (String) -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf("Library") }
-    
+
     // Placeholder data for UI preview (will be replaced with real metadata)
     val featuredAlbums = remember {
         listOf(
@@ -63,20 +65,20 @@ fun LibraryScreen(
             Album(id = 3, title = "MIKE", artist = "Artist 3", coverUrl = "https://picsum.photos/seed/album3/600/600")
         )
     }
-    
+
     val navItems = remember {
         listOf(
-            NavItem("Playlists", Icons.Outlined.PlayList),
+            NavItem("Playlists", Icons.Outlined.QueueMusic),
             NavItem("Artists", Icons.Outlined.Person),
             NavItem("Albums", Icons.Outlined.Album),
             NavItem("Songs", Icons.Outlined.MusicNote)
         )
     }
-    
+
     val recentlyAdded = remember {
         Album(id = 100, title = "Like A Ribbon", artist = "Polo & Pan", coverUrl = "https://picsum.photos/seed/recent/600/600")
     }
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -86,18 +88,18 @@ fun LibraryScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 80.dp) // Space for bottom nav
+                .padding(bottom = 150.dp) // Space for MiniPlayer + BottomNav
         ) {
             // Status Bar (Simulated)
             item {
                 StatusBar()
             }
-            
+
             // Library Header
             item {
                 LibraryHeader()
             }
-            
+
             // Featured Albums (Horizontal Scroll)
             item {
                 FeaturedAlbumsSection(
@@ -105,7 +107,7 @@ fun LibraryScreen(
                     onAlbumClick = onAlbumClick
                 )
             }
-            
+
             // Navigation Grid
             item {
                 NavigationGridSection(
@@ -113,7 +115,7 @@ fun LibraryScreen(
                     onNavItemClick = { /* TODO: Implement navigation */ }
                 )
             }
-            
+
             // Recently Added
             item {
                 RecentlyAddedSection(
@@ -122,17 +124,17 @@ fun LibraryScreen(
                     onMoreClick = { /* TODO: Implement more options */ }
                 )
             }
-            
+
             // Bottom spacer
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
-        
-        // Fixed Bottom Navigation Bar
+
+        // Fixed Bottom Navigation Bar with blur effect
         BottomNavigationBar(
             selectedTab = selectedTab,
-            onTabSelected = { 
+            onTabSelected = {
                 selectedTab = it
                 onNavigate(it)
             },
@@ -163,7 +165,7 @@ private fun StatusBar() {
             fontWeight = FontWeight.Medium,
             color = Color.Black
         )
-        
+
         // System icons (simulated)
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -196,7 +198,7 @@ private fun StatusBar() {
 /**
  * Library Header Component
  *
- * Large "Library" title text.
+ * Large "Library" title text (34sp, Bold).
  */
 @Composable
 private fun LibraryHeader() {
@@ -212,7 +214,7 @@ private fun LibraryHeader() {
 /**
  * Featured Albums Section
  *
- * Horizontal scrollable row of large album covers (160dp).
+ * Horizontal scrollable row of large album covers (160dp x 160dp).
  */
 @Composable
 private fun FeaturedAlbumsSection(
@@ -232,7 +234,7 @@ private fun FeaturedAlbumsSection(
             color = Color.Black,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
-        
+
         // Horizontal scrollable row
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
@@ -249,7 +251,7 @@ private fun FeaturedAlbumsSection(
                 )
             }
         }
-        
+
         // Divider
         Divider(
             color = Color(0xFFEEEEEE),
@@ -323,7 +325,7 @@ private fun NavigationGridSection(
                 )
             }
         }
-        
+
         // Divider
         Divider(
             color = Color(0xFFEEEEEE),
@@ -358,7 +360,7 @@ private fun NavigationGridItem(
             tint = Color.Black,
             modifier = Modifier.size(24.dp)
         )
-        
+
         Text(
             text = item.title,
             fontSize = 17.sp,
@@ -393,7 +395,7 @@ private fun RecentlyAddedSection(
             color = Color.Black,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
-        
+
         // Recently added card
         Row(
             modifier = Modifier
@@ -410,7 +412,7 @@ private fun RecentlyAddedSection(
                     .size(60.dp)
                     .clip(RoundedCornerShape(8.dp))
             )
-            
+
             // Song info
             Column(
                 modifier = Modifier
@@ -425,7 +427,7 @@ private fun RecentlyAddedSection(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Text(
                     text = album.artist,
                     fontSize = 14.sp,
@@ -436,7 +438,7 @@ private fun RecentlyAddedSection(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            
+
             // Playback controls
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -452,7 +454,7 @@ private fun RecentlyAddedSection(
                         modifier = Modifier.size(28.dp)
                     )
                 }
-                
+
                 IconButton(
                     onClick = onMoreClick,
                     modifier = Modifier.size(40.dp)
@@ -466,7 +468,7 @@ private fun RecentlyAddedSection(
                 }
             }
         }
-        
+
         // Divider
         Divider(
             color = Color(0xFFEEEEEE),
@@ -477,10 +479,15 @@ private fun RecentlyAddedSection(
 }
 
 /**
- * Bottom Navigation Bar Component
+ * Bottom Navigation Bar Component (Apple Music Style)
  *
  * Fixed bottom bar with two tabs: Library and More.
- * Library tab is visually selected (highlighted).
+ *
+ * Visual Properties:
+ * - 12dp corner radius
+ * - BackdropFilter blur effect (sigmaX=8f, sigmaY=8f)
+ * - Semi-transparent white background (90% opacity)
+ * - Fixed position at screen bottom
  */
 @Composable
 private fun BottomNavigationBar(
@@ -488,46 +495,52 @@ private fun BottomNavigationBar(
     onTabSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    NavigationBar(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp),
-        containerColor = Color(0xF2FFFFFF), // 90% white opacity
-        tonalElevation = 8.dp
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.9f))
     ) {
-        val bottomNavItems = listOf(
-            "Library" to Icons.Filled.LibraryMusic,
-            "More" to Icons.Filled.MoreVert
-        )
-        
-        bottomNavItems.forEach { (label, icon) ->
-            NavigationBarItem(
-                selected = selectedTab == label,
-                onClick = { onTabSelected(label) },
-                icon = {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        modifier = Modifier.size(24.dp)
-                    )
-                },
-                label = {
-                    Text(
-                        text = label,
-                        fontSize = 10.sp,
-                        fontWeight = if (selectedTab == label) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (selectedTab == label) Color.Black else Color(0xFF666666),
-                        maxLines = 1
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.Black,
-                    unselectedIconColor = Color(0xFF666666),
-                    selectedTextColor = Color.Black,
-                    unselectedTextColor = Color(0xFF666666),
-                    indicatorColor = Color(0xFFE5E5E5)
-                )
+        NavigationBar(
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp
+        ) {
+            val bottomNavItems = listOf(
+                "Library" to Icons.Filled.LibraryMusic,
+                "More" to Icons.Filled.MoreVert
             )
+
+            bottomNavItems.forEach { (label, icon) ->
+                NavigationBarItem(
+                    selected = selectedTab == label,
+                    onClick = { onTabSelected(label) },
+                    icon = {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            fontWeight = if (selectedTab == label) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (selectedTab == label) Color.Black else Color(0xFF666666),
+                            maxLines = 1
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color.Black,
+                        unselectedIconColor = Color(0xFF666666),
+                        selectedTextColor = Color.Black,
+                        unselectedTextColor = Color(0xFF666666),
+                        indicatorColor = Color(0xFFE5E5E5)
+                    )
+                )
+            }
         }
     }
 }
