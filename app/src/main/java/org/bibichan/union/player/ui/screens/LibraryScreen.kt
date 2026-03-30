@@ -13,6 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -508,8 +511,8 @@ private fun BottomNavigationBar(
             tonalElevation = 0.dp
         ) {
             val bottomNavItems = listOf(
-                "Library" to Icons.Filled.LibraryMusic,
-                "More" to Icons.Filled.MoreVert
+                "Library" to Icons.Default.LibraryBooks,
+                "More" to Icons.Default.MoreVert
             )
 
             bottomNavItems.forEach { (label, icon) ->

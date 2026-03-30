@@ -32,7 +32,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -41,6 +42,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            isShrinkResources = false
             isDebuggable = true
             // AGP automatically creates 'debug' signing config
             signingConfig = signingConfigs.getByName("debug")
@@ -81,6 +83,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.8")
 
     // Icons - For navigation icons
+    // Note: material-icons-extended provides a comprehensive set of icons
+    // For future optimization, consider using only specific icon imports
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
     // Image loading - For album covers (Coil)

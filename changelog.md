@@ -2,6 +2,76 @@
 
 ## [Unreleased] - 2026-03-30
 
+### 🔧 APK Size Optimization
+
+**Reduced APK size by enabling R8 code shrinking and optimizing ProGuard rules.**
+
+#### Root Causes Identified
+- **Code shrinking disabled**: `isMinifyEnabled = false` in release build
+- **Overly permissive ProGuard rules**: Entire libraries kept with `-keep class org.jaudiotagger.** { *; }`
+- **Unused library references**: JAudioTagger and mp3agic kept but potentially unused
+
+#### Optimization Steps Applied
+
+1. **Enabled R8 Code Shrinking**
+   - Set `isMinifyEnabled = true` for release build
+   - Set `isShrinkResources = true` to remove unused resources
+
+2. **Optimized ProGuard Rules**
+   - Replaced `-keep` with `-dontwarn` for optional audio libraries
+   - Removed blanket keep rules that preserved entire libraries
+   - Added R8-specific optimizations
+   - Kept essential Compose and AndroidX classes
+
+3. **Attempted Icon Dependency Optimization**
+   - Tried replacing `material-icons-extended` with `material-icons-core`
+   - **Result**: Build failed - code uses extended icons (Album, SkipPrevious, LibraryBooks, etc.)
+   - **Decision**: Kept `material-icons-extended` for functionality
+
+#### Files Modified
+- `app/build.gradle.kts`: Enabled minify and shrinkResources
+- `app/proguard-rules.pro`: Optimized keep rules
+
+#### Expected Size Reduction
+- **Estimated**: 40-55% reduction in APK size
+- **Primary gains**: R8 code shrinking (30-50%), ProGuard optimization (10-20%)
+
+### 🎨 Added - New App Launcher Icon (Green Neon Music Note)
+
+**Updated app icon to a green neon music note with atomic orbit design, AI watermark removed.**
+
+#### Icon Assets Generated
+- Created PNG foreground images for all screen densities:
+  - `mipmap-xxxhdpi`: 324x324 px
+  - `mipmap-xxhdpi`: 243x243 px
+  - `mipmap-xhdpi`: 162x162 px
+  - `mipmap-hdpi`: 121x121 px
+  - `mipmap-mdpi`: 81x81 px
+
+#### Icon Design
+- **Foreground**: Green neon music note with atomic orbit rings and circuit board pattern
+- **Background**: Green (#4CAF50) - matches app brand color
+- **Style**: Futuristic, neon glow, tech-inspired
+- **Watermark**: Removed "元宝 AI 生成" watermark from bottom-right corner
+
+#### Processing Steps
+1. **Original size**: 1024x1024 px
+2. **Watermark removal**: Cropped bottom 8% of image (where watermark was located)
+3. **Cleaned size**: 942x942 px
+4. **Format conversion**: JPEG → PNG
+5. **Multi-size generation**: Scaled to 5 densities using bicubic interpolation
+
+#### Files Modified
+1. **`mipmap-anydpi-v26/ic_launcher.xml`** - References new PNG foreground
+2. **`mipmap-anydpi-v26/ic_launcher_round.xml`** - Round variant updated
+
+#### Before vs After (This Update)
+| Property | Speaker Icon | New Neon Music Note |
+|----------|--------------|---------------------|
+| Foreground | Red speaker with colorful rings | Green neon music note with orbits |
+| Watermark | None | Removed (cropped) |
+| Style | Vibrant, detailed | Futuristic, tech |
+
 ### 🎨 Added - New App Launcher Icon (Speaker Icon)
 
 **Replaced the default music note vector icon with a custom speaker icon featuring colorful 环绕 effect.**

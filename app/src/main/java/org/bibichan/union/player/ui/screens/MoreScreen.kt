@@ -222,8 +222,8 @@ fun MoreScreen(
                 tonalElevation = 0.dp
             ) {
                 val bottomNavItems = listOf(
-                    "Library" to Icons.Filled.LibraryMusic,
-                    "More" to Icons.Filled.MoreVert
+                    "Library" to Icons.Default.LibraryBooks,
+                    "More" to Icons.Default.MoreVert
                 )
 
                 bottomNavItems.forEach { (label, icon) ->
