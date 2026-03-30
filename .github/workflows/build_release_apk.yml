@@ -67,7 +67,22 @@ jobs:
     - name: Decode & place keystore
       if: ${{ inputs.build_type == 'release' }}
       run: |
+        echo "=== Decoding Keystore ==="
+        if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+          echo "ERROR: ANDROID_KEYSTORE_BASE64 secret is not set!"
+          exit 1
+        fi
+        echo "Keystore base64 length: ${#ANDROID_KEYSTORE_BASE64}"
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release-keystore.p12
+        if [ -f "${{ github.workspace }}/release-keystore.p12" ]; then
+          echo "Keystore file created successfully"
+          ls -lh ${{ github.workspace }}/release-keystore.p12
+        else
+          echo "ERROR: Failed to create keystore file"
+          exit 1
+        fi
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
     - name: Setup signing properties for release
       if: ${{ inputs.build_type == 'release' }}
@@ -85,7 +100,17 @@ jobs:
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
+        echo "=== Signing Configuration ==="
+        echo "KEYSTORE_PATH: $KEYSTORE_PATH"
+        echo "KEYSTORE_PASSWORD: [REDACTED]"
+        echo "KEY_ALIAS: $KEY_ALIAS"
+        echo "KEY_PASSWORD: [REDACTED]"
+        echo ""
+        echo "Keystore file exists: $([ -f "$KEYSTORE_PATH" ] && echo 'YES' || echo 'NO')"
+        echo ""
+        echo "=== Building Release APK ==="
         ./gradlew assembleRelease --no-daemon --stacktrace
+        echo ""
         echo "=== APK Output ==="
         find app/build/outputs/apk -name "*.apk" -type f
 
