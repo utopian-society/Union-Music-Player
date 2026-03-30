@@ -69,6 +69,14 @@ jobs:
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release-keystore.p12
 
+    - name: Setup signing properties for release
+      if: ${{ inputs.build_type == 'release' }}
+      run: |
+        echo "release.storeFile=${{ github.workspace }}/release-keystore.p12" >> gradle.properties
+        echo "release.storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> gradle.properties
+        echo "release.keyAlias=${{ secrets.KEY_ALIAS }}" >> gradle.properties
+        echo "release.keyPassword=${{ secrets.KEY_PASSWORD }}" >> gradle.properties
+
     - name: Build Release APK
       if: ${{ inputs.build_type == 'release' }}
       env:
@@ -76,17 +84,33 @@ jobs:
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: ./gradlew assembleRelease --no-daemon
+      run: |
+        ./gradlew assembleRelease --no-daemon --stacktrace
+        echo "=== APK Output ==="
+        find app/build/outputs/apk -name "*.apk" -type f
 
     - name: Build Debug APK
       if: ${{ inputs.build_type == 'debug' }}
-      run: ./gradlew assembleDebug --no-daemon
+      run: |
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        echo "=== APK Output ==="
+        find app/build/outputs/apk -name "*.apk" -type f
 
     - name: Prepare release artifact (Release)
       if: ${{ inputs.build_type == 'release' }}
       run: |
+        echo "=== Searching for Release APK ==="
+        find app/build/outputs/apk -name "*.apk" -type f 2>/dev/null || echo "No APK found"
+        APK_PATH=$(find app/build/outputs/apk/release -name "*release*.apk" -type f 2>/dev/null | head -n 1)
+        if [ -z "$APK_PATH" ]; then
+          echo "ERROR: Release APK not found. Listing all APKs:"
+          find app/build/outputs -name "*.apk" -type f 2>/dev/null || echo "No APKs in outputs"
+          exit 1
+        fi
+        echo "Found APK: $APK_PATH"
         mkdir -p release
-        cp app/build/outputs/apk/release/app-release.apk release/UnionMusicPlayer-v${{ inputs.version }}-release.apk
+        cp "$APK_PATH" release/UnionMusicPlayer-v${{ inputs.version }}-release.apk
+        ls -lh release/
 
     - name: Prepare release artifact (Debug)
       if: ${{ inputs.build_type == 'debug' }}

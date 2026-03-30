@@ -26,6 +26,22 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            // Signing config properties are set via gradle.properties or environment variables
+            // GitHub Actions sets these in the workflow
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: System.getProperty("release.storeFile") ?: file("debug.keystore"))
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getProperty("release.storePassword") ?: ""
+            keyAlias = System.getenv("KEY_ALIAS") ?: System.getProperty("release.keyAlias") ?: "androiddebugkey"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: System.getProperty("release.keyPassword") ?: ""
         }
     }
 

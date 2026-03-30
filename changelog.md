@@ -92,6 +92,13 @@
 - JDK 25 configured (user preference)
 - Updated Android SDK components to API 36, build-tools 36.0.0
 - Added Gradle wrapper validation step
+- **Fixed APK signing configuration:**
+  - Added `signingConfigs` block to `app/build.gradle.kts`
+  - Added step to setup signing properties from secrets
+  - Build steps now use `--stacktrace` for better error reporting
+  - Added APK output discovery using `find` command
+  - Improved release artifact preparation with error handling
+  - Added debug APK build step with output listing
 
 *build_ffmpeg_decoder.yml:*
 - Updated NDK to 28.2.13676358, CMake to 3.31.6
