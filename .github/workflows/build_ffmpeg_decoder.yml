@@ -44,10 +44,10 @@ jobs:
 
     - name: Install required SDK components
       run: |
-        sdkmanager --install "platforms;android-35" \
-          "build-tools;35.0.0" \
-          "ndk;26.1.10909125" \
-          "cmake;3.22.1"
+        sdkmanager --install "platforms;android-36" \
+          "build-tools;36.0.0" \
+          "ndk;28.2.13676358" \
+          "cmake;3.31.6"
         yes | sdkmanager --licenses
 
     - name: Install native build tools
@@ -55,9 +55,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y autoconf automake libtool make nasm yasm pkg-config
 
+    - name: Validate Gradle wrapper
+      run: |
+        echo "=== Checking Gradle Wrapper Files ==="
+        ls -la gradle/wrapper/
+        echo "=== Gradle Wrapper Properties ==="
+        cat gradle/wrapper/gradle-wrapper.properties
+
     - name: Build FFmpeg Decoder and commit AAR to libs/
       env:
-        NDK_VERSION: '26.1.10909125'
+        NDK_VERSION: '28.2.13676358'
         MEDIA3_TAG: ${{ inputs.media3_tag }}
         ANDROID_ABI: ${{ inputs.build_abi }}
       run: |
@@ -65,7 +72,7 @@ jobs:
 
         cd media3
 
-        # Force Gradle 9.4.1 (compatible with JDK 25 for main build)
+        # Force Gradle 9.4.1 (compatible with JDK 17 for main build)
         sed -i 's|distributionUrl=.*|distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-all.zip|' gradle/wrapper/gradle-wrapper.properties
 
         export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"

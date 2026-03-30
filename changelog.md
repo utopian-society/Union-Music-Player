@@ -1,6 +1,108 @@
 # Union Music Player - Changelog
 
-## [Unreleased] - 2026-03-29
+## [Unreleased] - 2026-03-30
+
+### 🔧 Fixed - Gradle Wrapper Build Error
+
+#### Problem
+- GitHub Actions build failed with error: "Could not find or load main class org.gradle.wrapper.GradleWrapperMain"
+- Exit code 1 indicated corrupted or missing Gradle wrapper
+
+#### Root Cause
+- `gradle/wrapper/` directory was completely missing
+- No `gradle-wrapper.jar` or `gradle-wrapper.properties` files present
+- Root-level `build.gradle.kts` and `settings.gradle.kts` files were missing
+
+#### Solution Implemented
+
+**1. Created Gradle Wrapper Configuration**
+- Created `gradle/wrapper/gradle-wrapper.properties`
+- Configured Gradle 9.4.1 (latest stable, released March 2026)
+- Set distribution URL to official Gradle services
+- Added network timeout and validation settings
+
+**2. Downloaded Gradle Wrapper JAR**
+- Downloaded `gradle-wrapper.jar` from official Gradle GitHub repository
+- Placed in `gradle/wrapper/` directory
+- File size: 48,966 bytes
+
+**3. Created Root Build Configuration**
+- Created `build.gradle.kts` at project root
+- Configured Android Gradle Plugin 9.1.0 (March 2026 release)
+- Configured Kotlin 2.0.0
+- Added clean task for build directory management
+
+**4. Created Settings Configuration**
+- Created `settings.gradle.kts`
+- Configured plugin repositories (Google, Maven Central, Gradle Plugin Portal)
+- Configured dependency resolution management
+- Set project name to "UnionMusicPlayer"
+- Included `:app` module
+
+**5. Updated App Module Configuration**
+- Updated `app/build.gradle.kts` for AGP 9.1.0 compatibility
+- Changed `compileSdk` from 34 to 36
+- Changed `targetSdk` from 34 to 36
+- Updated Kotlin compiler extension to 1.5.15
+- Updated all AndroidX and Compose dependencies to latest versions:
+  - `androidx.core:core-ktx:1.15.0`
+  - `androidx.lifecycle:lifecycle-runtime-ktx:2.8.7`
+  - `androidx.activity:activity-compose:1.10.0`
+  - `androidx.compose.material3:material3:1.3.1`
+  - `androidx.compose.ui:*:1.7.8`
+  - `androidx.navigation:navigation-compose:2.8.8`
+  - `io.coil-kt:coil-compose:2.7.0`
+
+**6. Updated GitHub Actions Workflows**
+
+*build_release_apk.yml:*
+- Changed JDK from 25 to 17 (AGP 9.1.0 requirement)
+- Updated Android SDK components to API 36
+- Updated build-tools to 36.0.0
+- Added comprehensive Gradle wrapper validation step:
+  - Lists `gradle/wrapper/` directory contents
+  - Displays `gradle-wrapper.properties` content
+  - Runs `./gradlew --version` for verification
+
+*build_ffmpeg_decoder.yml:*
+- Updated NDK from 26.1.10909125 to 28.2.13676358
+- Updated CMake from 3.22.1 to 3.31.6
+- Updated SDK components to API 36
+- Added Gradle wrapper validation step
+- Fixed comment to reference JDK 17
+
+### 📚 Learning Points
+
+#### Gradle Wrapper Architecture
+- **gradle-wrapper.jar**: Bootstrap class loader that downloads and runs Gradle
+- **gradle-wrapper.properties**: Configuration file specifying Gradle version
+- **gradlew/graflew.bat**: Shell scripts that invoke the wrapper JAR
+
+#### Version Compatibility Matrix (2026)
+| Component | Version | Requirement |
+|-----------|---------|-------------|
+| Android Gradle Plugin | 9.1.0 | Requires Gradle 9.3.1+ |
+| Gradle | 9.4.1 | Latest stable (March 2026) |
+| JDK | 17 | Minimum and default for AGP 9.1.0 |
+| compileSdk | 36 | Latest Android API |
+| build-tools | 36.0.0 | Matches compileSdk |
+| NDK | 28.2.x | Latest for native builds |
+
+#### Verification Commands
+```bash
+# Check wrapper files exist
+ls -la gradle/wrapper/
+
+# Verify Gradle version
+./gradlew --version
+
+# Clean build test
+./gradlew clean build
+```
+
+---
+
+## [0.1.0] - 2026-03-29
 
 ### 🎨 Added - Complete UI Implementation
 
