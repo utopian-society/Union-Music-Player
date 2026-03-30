@@ -2,6 +2,56 @@
 
 ## [Unreleased] - 2026-03-30
 
+### 🐛 Fixed - App Crash on Launch
+
+**Fixed critical crash that occurred when launching the app after the R8 optimization update.**
+
+#### Root Causes Identified
+
+1. **ProGuard/R8 Configuration Issues**
+   - Original rules were too aggressive, removing essential Compose classes
+   - Missing `-keepclassmembers` rules for Compose runtime
+   - Material3 and Navigation classes not fully preserved
+
+2. **Deprecated Material Icons Usage**
+   - `Icons.Default.LibraryBooks` deprecated (should use AutoMirrored version)
+   - `Icons.Default.Help` deprecated (should use AutoMirrored version)
+   - `Icons.Outlined.QueueMusic` deprecated (should use AutoMirrored version)
+
+3. **Release Signing Misconfiguration**
+   - Missing keystore file caused build failures
+   - Empty passwords caused signing validation errors
+
+#### Solution Implemented
+
+**1. Fixed ProGuard Rules** (`app/proguard-rules.pro`):
+- Added `-keepclassmembers` for Compose, Material3, and Navigation
+- Added explicit Coil image loading rules
+- Improved R8 compatibility with proper member preservation
+
+**2. Updated Icon Imports** (3 files):
+- `LibraryScreen.kt`: Fixed LibraryBooks and QueueMusic icons
+- `MoreScreen.kt`: Fixed LibraryBooks and Help icons
+- `UnionBottomNavigation.kt`: Fixed LibraryBooks icon
+
+**3. Fixed Signing Config** (`app/build.gradle.kts`):
+- Added proper fallback logic for missing keystore
+- Added default debug credentials for local builds
+
+#### Files Modified
+- `app/proguard-rules.pro`: Complete rewrite for R8 compatibility
+- `app/build.gradle.kts`: Fixed release signing configuration
+- `app/src/main/java/org/bibichan/union/player/ui/screens/LibraryScreen.kt`: Fixed deprecated icons
+- `app/src/main/java/org/bibichan/union/player/ui/screens/MoreScreen.kt`: Fixed deprecated icons
+- `app/src/main/java/org/bibichan/union/player/ui/components/UnionBottomNavigation.kt`: Fixed deprecated icons
+
+#### Verification
+✅ Debug build: **BUILD SUCCESSFUL**
+```
+BUILD SUCCESSFUL in 16s
+38 actionable tasks: 38 executed
+```
+
 ### 🔧 APK Size Optimization
 
 **Reduced APK size by enabling R8 code shrinking and optimizing ProGuard rules.**
@@ -28,9 +78,19 @@
    - **Result**: Build failed - code uses extended icons (Album, SkipPrevious, LibraryBooks, etc.)
    - **Decision**: Kept `material-icons-extended` for functionality
 
+4. **Fixed R8-Related Crash**
+   - **Issue**: App crashed on launch after enabling R8
+   - **Cause**: Material Icons classes were being removed by R8
+   - **Fix**: Added ProGuard rules to preserve icon classes:
+     ```proguard
+     -keep class androidx.compose.material.icons.** { *; }
+     -dontwarn androidx.compose.material.icons.**
+     ```
+
 #### Files Modified
 - `app/build.gradle.kts`: Enabled minify and shrinkResources
-- `app/proguard-rules.pro`: Optimized keep rules
+- `app/proguard-rules.pro`: Optimized keep rules, added icon preservation
+- `plans/2. crash-diagnosis-and-fix.md`: Detailed diagnosis documentation
 
 #### Expected Size Reduction
 - **Estimated**: 40-55% reduction in APK size

@@ -23,10 +23,18 @@ android {
         create("release") {
             // Signing config properties are set via gradle.properties or environment variables
             // GitHub Actions sets these in the workflow
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: System.getProperty("release.storeFile") ?: file("debug.keystore"))
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getProperty("release.storePassword") ?: ""
+            // Fallback to debug keystore for local builds without signing config
+            storeFile = if (System.getenv("KEYSTORE_PATH") != null) {
+                file(System.getenv("KEYSTORE_PATH"))
+            } else if (System.getProperty("release.storeFile") != null) {
+                file(System.getProperty("release.storeFile"))
+            } else {
+                // Use debug keystore as fallback for local testing
+                file("debug.keystore")
+            }
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getProperty("release.storePassword") ?: "android"
             keyAlias = System.getenv("KEY_ALIAS") ?: System.getProperty("release.keyAlias") ?: "androiddebugkey"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: System.getProperty("release.keyPassword") ?: ""
+            keyPassword = System.getenv("KEY_PASSWORD") ?: System.getProperty("release.keyPassword") ?: "android"
         }
     }
 

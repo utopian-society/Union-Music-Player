@@ -1,13 +1,26 @@
 # Union Music Player - ProGuard Rules
-# Optimized for APK size reduction
+# Fixed for R8 compatibility with Jetpack Compose
 
 # ═══════════════════════════════════════════════════════════════
 # ANDROIDX & COMPOSE - Keep essential framework classes
 # ═══════════════════════════════════════════════════════════════
 
-# Keep Compose classes
+# Keep Compose runtime and core classes
 -keep class androidx.compose.** { *; }
+-keepclassmembers class androidx.compose.** { *; }
+
+# Keep Navigation components
 -keep class androidx.navigation.** { *; }
+-keepclassmembers class androidx.navigation.** { *; }
+
+# Keep Material Icons - Required for Icons.*.* usage
+# This prevents R8 from removing icon classes used at runtime
+-keep class androidx.compose.material.icons.** { *; }
+-dontwarn androidx.compose.material.icons.**
+
+# Keep Material 3 components
+-keep class androidx.compose.material3.** { *; }
+-keepclassmembers class androidx.compose.material3.** { *; }
 
 # Keep AndroidX core components
 -keepattributes *Annotation*
@@ -27,26 +40,23 @@
 # AUDIO LIBRARIES - Only keep if actually used
 # ═══════════════════════════════════════════════════════════════
 
-# JAudioTagger - Keep only if metadata extraction is used
-# Using -dontwarn to allow missing classes without keeping entire library
+# JAudioTagger - Using -dontwarn to allow missing classes
 -dontwarn javax.swing.**
 -dontwarn java.awt.**
 -dontwarn org.jaudiotagger.**
 
-# Mp3agic - Keep only if actually used
+# Mp3agic - Using -dontwarn to allow missing classes
 -dontwarn com.mpatric.mp3agic.**
 
-# If audio metadata extraction is implemented, uncomment these:
-# -keep class org.jaudiotagger.** { *; }
-# -keep class com.mpatric.mp3agic.** { *; }
-
 # ═══════════════════════════════════════════════════════════════
-# COIL IMAGE LOADING - Optimize for size
+# COIL IMAGE LOADING
 # ═══════════════════════════════════════════════════════════════
 
-# Keep Coil classes
+# Keep Coil classes for image loading
 -keep class coil.** { *; }
 -keep class coil3.** { *; }
+-dontwarn coil.**
+-dontwarn coil3.**
 
 # ═══════════════════════════════════════════════════════════════
 # SIZE OPTIMIZATIONS
@@ -56,21 +66,12 @@
 -optimizations !code/simplification/various,!code/allocation/*
 -allowaccessmodification
 
-# Remove logging calls (optional - uncomment to enable)
-# -assumenosideeffects class android.util.Log {
-#     public static *** d(...);
-#     public static *** v(...);
-# }
-
 # ═══════════════════════════════════════════════════════════════
 # R8 SPECIFIC OPTIMIZATIONS
 # ═══════════════════════════════════════════════════════════════
 
-# Enable R8 full mode for better optimization
-# (Set in gradle.properties: android.enableR8.fullMode=true)
-
 # Keep generic signature information
 -keepattributes Signature
 
-# Keep line number table for crash reporting (can be removed for smaller size)
-# -keepattributes SourceFile,LineNumberTable
+# Keep line number table for crash reporting
+-keepattributes SourceFile,LineNumberTable

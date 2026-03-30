@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -191,7 +193,8 @@ fun MoreScreen(
                     leadingContent = {
                         Icon(
                             // Help icon looks like ❓ (question mark)
-                            imageVector = Icons.Default.Help,
+                            // Using AutoMirrored version as Icons.Default.Help is deprecated
+                            imageVector = Icons.AutoMirrored.Filled.Help,
                             contentDescription = "Help",
                             // Purple color for help
                             tint = MaterialTheme.colorScheme.tertiary
@@ -222,7 +225,7 @@ fun MoreScreen(
                 tonalElevation = 0.dp
             ) {
                 val bottomNavItems = listOf(
-                    "Library" to Icons.Default.LibraryBooks,
+                    "Library" to Icons.AutoMirrored.Filled.LibraryBooks,
                     "More" to Icons.Default.MoreVert
                 )
 

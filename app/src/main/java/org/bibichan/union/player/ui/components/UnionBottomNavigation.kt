@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -101,7 +101,8 @@ fun UnionBottomNavigation(
                 icon = {
                     Icon(
                         // LibraryBooks icon looks like 📚 (books on shelf)
-                        imageVector = Icons.Default.LibraryBooks,
+                        // Using AutoMirrored version as Icons.Default.LibraryBooks is deprecated
+                        imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
                         contentDescription = "Library"  // For accessibility
                     )
                 },

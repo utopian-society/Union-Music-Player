@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -71,7 +73,7 @@ fun LibraryScreen(
 
     val navItems = remember {
         listOf(
-            NavItem("Playlists", Icons.Outlined.QueueMusic),
+            NavItem("Playlists", Icons.AutoMirrored.Outlined.QueueMusic),
             NavItem("Artists", Icons.Outlined.Person),
             NavItem("Albums", Icons.Outlined.Album),
             NavItem("Songs", Icons.Outlined.MusicNote)
@@ -511,7 +513,7 @@ private fun BottomNavigationBar(
             tonalElevation = 0.dp
         ) {
             val bottomNavItems = listOf(
-                "Library" to Icons.Default.LibraryBooks,
+                "Library" to Icons.AutoMirrored.Filled.LibraryBooks,
                 "More" to Icons.Default.MoreVert
             )
 
