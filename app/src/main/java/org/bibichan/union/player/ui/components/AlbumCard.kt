@@ -1,8 +1,14 @@
 package org.bibichan.union.player.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,23 +63,21 @@ fun AlbumCard(
     Card(
         // onClick: Called when user taps the card
         onClick = { onClick(album) },  // Pass album data to parent
-        
+
         // Styling the card
+        // Make the card square (1:1 aspect ratio) by applying aspectRatio to modifier
         modifier = modifier
             .padding(8.dp)      // Add 8dp space around card
-            .fillMaxWidth(),    // Fill available width
-        
-        // Make the card square (1:1 aspect ratio)
-        // This means height = width
-        aspectRatio(1f),
-        
+            .fillMaxWidth()     // Fill available width
+            .aspectRatio(1f),   // 1:1 ratio = perfect square
+
         // Rounded corners (12dp radius)
         shape = RoundedCornerShape(12.dp),
-        
+
         // Elevation creates drop shadow effect
         // defaultElevation = 4dp = subtle shadow
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        
+
         // Card background color
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant

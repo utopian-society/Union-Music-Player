@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import org.bibichan.union.player.ui.theme.GreenPrimary
 import org.bibichan.union.player.ui.theme.YellowAccent
 

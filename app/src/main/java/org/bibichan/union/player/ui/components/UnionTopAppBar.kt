@@ -7,26 +7,27 @@ import org.bibichan.union.player.ui.theme.GreenPrimary
 
 /**
  * UnionTopAppBar Component
- * 
+ *
  * The top application bar (header) that displays:
  * - App title with music emoji
  * - Green background (brand color)
- * 
+ *
  * KEY CONCEPTS:
- * 
+ *
  * 1. TopAppBar:
  *    - Standard Material Design app bar component
  *    - Provides consistent header across Android apps
  *    - Supports title, navigation icon, and action buttons
- * 
+ *
  * 2. TopAppBarDefaults:
  *    - Pre-configured colors for TopAppBar
  *    - Ensures proper contrast and accessibility
- * 
+ *
  * 3. Lambda syntax: { }
  *    - title = { Text("...") } means "a function that returns Text"
  *    - TopAppBar calls this lambda to get the title content
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnionTopAppBar() {
     // TopAppBar: Standard Android app header
@@ -41,25 +42,25 @@ fun UnionTopAppBar() {
                 // color = Color.White
             )
         },
-        
+
         // colors: Customize the app bar appearance
         colors = TopAppBarDefaults.topAppBarColors(
             // containerColor: Background color of the app bar
             containerColor = GreenPrimary,  // Our brand green
-            
+
             // titleContentColor: Color of the title text
             titleContentColor = Color.White,  // White on green = good contrast
-            
+
             // navigationIconContentColor: Color of hamburger menu (if added)
             navigationIconContentColor = Color.White,
-            
+
             // actionIconContentColor: Color of action buttons (if added)
             actionIconContentColor = Color.White
         )
-        
+
         // NOTE: We're NOT adding any action buttons
         // The design spec said to remove the account icon
-        // 
+        //
         // If you wanted to add actions, you would use:
         // actions = {
         //     IconButton(onClick = { /* do something */ }) {
